@@ -1,16 +1,10 @@
 import { router } from "expo-router";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import AppButton from "../../components/AppButton";
 import Screen from "../../components/Screen";
 
-export default function Login() {
+export default function RegisterStep1() {
   return (
     <Screen>
       <View style={styles.headerContainer}>
@@ -24,37 +18,33 @@ export default function Login() {
       <View style={styles.form}>
         <TextInput
           style={styles.input}
+          placeholder="Nome"
+          placeholderTextColor="#7A7F9A"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Cognome"
+          placeholderTextColor="#7A7F9A"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Data di nascita (GG/MM/AAAA)"
+          placeholderTextColor="#7A7F9A"
+        />
+        <TextInput
+          style={styles.input}
           placeholder="Email"
           placeholderTextColor="#7A7F9A"
           keyboardType="email-address"
           autoCapitalize="none"
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#7A7F9A"
-          secureTextEntry
-        />
 
-        <AppButton title="Accedi" onPress={() => router.replace("/feed")} />
-
-        <TouchableOpacity
-          onPress={() => {
-            /* Logica recupero password */
-          }}
-        >
-          <Text style={styles.linkText}>Password dimenticata?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.registerLink}
-          onPress={() => router.push("/(auth)/register-step1")}
-        >
-          <Text style={styles.registerText}>
-            Non hai un account?{" "}
-            <Text style={styles.registerTextBold}>Registrati</Text>
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <AppButton
+            title="Avanti"
+            onPress={() => router.push("/(auth)/register-step2")}
+          />
+        </View>
       </View>
     </Screen>
   );
@@ -62,7 +52,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    marginTop: 40,
+    marginTop: 20,
     marginBottom: 32,
     alignItems: "center",
   },
@@ -92,23 +82,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EEF0F6",
   },
-  linkText: {
-    color: "#5B5FEF",
-    fontWeight: "700",
-    textAlign: "center",
-    marginTop: 20,
-  },
-  registerLink: {
-    marginTop: "auto",
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  registerText: {
-    color: "#5E6278",
-    fontSize: 15,
-  },
-  registerTextBold: {
-    color: "#5B5FEF",
-    fontWeight: "800",
+  buttonContainer: {
+    marginTop: 10,
   },
 });

@@ -1,16 +1,16 @@
 import { router } from "expo-router";
 import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 import AppButton from "../../components/AppButton";
 import Screen from "../../components/Screen";
 
-export default function Login() {
+export default function RegisterStep2() {
   return (
     <Screen>
       <View style={styles.headerContainer}>
@@ -22,11 +22,19 @@ export default function Login() {
       </View>
 
       <View style={styles.form}>
+        <View style={styles.photoUploadContainer}>
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarIcon}>📷</Text>
+          </View>
+          <TouchableOpacity>
+            <Text style={styles.photoLink}>Modifica foto</Text>
+          </TouchableOpacity>
+        </View>
+
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Username"
           placeholderTextColor="#7A7F9A"
-          keyboardType="email-address"
           autoCapitalize="none"
         />
         <TextInput
@@ -35,26 +43,19 @@ export default function Login() {
           placeholderTextColor="#7A7F9A"
           secureTextEntry
         />
+        <TextInput
+          style={styles.input}
+          placeholder="Ripeti password"
+          placeholderTextColor="#7A7F9A"
+          secureTextEntry
+        />
 
-        <AppButton title="Accedi" onPress={() => router.replace("/feed")} />
-
-        <TouchableOpacity
-          onPress={() => {
-            /* Logica recupero password */
-          }}
-        >
-          <Text style={styles.linkText}>Password dimenticata?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.registerLink}
-          onPress={() => router.push("/(auth)/register-step1")}
-        >
-          <Text style={styles.registerText}>
-            Non hai un account?{" "}
-            <Text style={styles.registerTextBold}>Registrati</Text>
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <AppButton
+            title="Registrati"
+            onPress={() => router.replace("/feed")}
+          />
+        </View>
       </View>
     </Screen>
   );
@@ -62,8 +63,8 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    marginTop: 40,
-    marginBottom: 32,
+    marginTop: 20,
+    marginBottom: 24,
     alignItems: "center",
   },
   appTitle: {
@@ -82,6 +83,27 @@ const styles = StyleSheet.create({
   form: {
     flex: 1,
   },
+  photoUploadContainer: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#ECEEFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  avatarIcon: {
+    fontSize: 30,
+  },
+  photoLink: {
+    color: "#5B5FEF",
+    fontWeight: "800",
+    fontSize: 14,
+  },
   input: {
     backgroundColor: "#F6F7FB",
     borderRadius: 14,
@@ -92,23 +114,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EEF0F6",
   },
-  linkText: {
-    color: "#5B5FEF",
-    fontWeight: "700",
-    textAlign: "center",
-    marginTop: 20,
-  },
-  registerLink: {
-    marginTop: "auto",
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  registerText: {
-    color: "#5E6278",
-    fontSize: 15,
-  },
-  registerTextBold: {
-    color: "#5B5FEF",
-    fontWeight: "800",
+  buttonContainer: {
+    marginTop: 10,
   },
 });
