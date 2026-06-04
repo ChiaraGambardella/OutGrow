@@ -1,5 +1,5 @@
+import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
 import Screen from '../../../components/Screen';
@@ -7,7 +7,10 @@ import Screen from '../../../components/Screen';
 export default function Feed() {
   return (
     <Screen>
-      <Header title="OutGrow" />
+      <Header title="OutGrow"
+        showMenu
+        onMenuPress={() => router.push('/settings')}
+      />
 
       <Card style={styles.banner}>
         <Text style={styles.bannerTitle}>Completa la sfida settimanale!</Text>
