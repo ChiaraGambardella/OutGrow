@@ -8,7 +8,10 @@ import Screen from '../../../components/Screen';
 export default function Challenge() {
   return (
     <Screen>
-      <Header title="OutGrow" />
+      <Header title="OutGrow"
+        showMenu
+        onMenuPress={() => router.push('/settings')}
+      />
 
       <Text style={styles.sectionLabel}>QUESTA SETTIMANA</Text>
 

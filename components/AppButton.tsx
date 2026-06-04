@@ -37,6 +37,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#5B5FEF',
     paddingVertical: 14,
     paddingHorizontal: 18,
+   
     borderRadius: 999,
     alignItems: 'center',
     marginTop: 12,
@@ -53,6 +54,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   secondaryText: {
-    color: '#5B5FEF',
+    color: '#5d61ef',
   },
 });
