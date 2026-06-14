@@ -1,0 +1,103 @@
+# ==========================================
+# 1.  Dipendenze Globali e Locali
+# ==========================================
+# Ignora i node_modules della root e di tutte le sotto-cartelle (apps, packages)
+node_modules/
+
+# ==========================================
+# 2. Build e Output Compilati (AGGIUNTO)
+# ==========================================
+dist/
+build/
+web-build/
+*.tsbuildinfo
+
+# ==========================================
+# 3. Sicurezza e Variabili d'Ambiente
+# ==========================================
+# Ignora i file con le credenziali reali, ma NON gli .env.example
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Specfico per il frontend (se usa un .env separato)
+apps/frontend/.env
+
+# ==========================================
+# 4. Database (PostgreSQL)
+# ==========================================
+# Ignora i file di dati effettivi generati da Postgres all'interno del volume locale
+/database/
+
+# ==========================================
+# 5. Backend & Uploads
+# ==========================================
+# Ignora i file caricati dagli utenti (immagini del profilo, post, ecc.)
+# Mantiene le cartelle ma non i file al loro interno
+apps/backend/uploads/posts/*
+!apps/backend/uploads/posts/.gitkeep
+
+apps/backend/uploads/profiles/*
+!apps/backend/uploads/profiles/.gitkeep
+
+# ==========================================
+# 6. Frontend (Expo & React Native)
+# ==========================================
+# Ignora la cartella locale di Expo (cache, dispositivi connessi, tipi generati automaticamente)
+apps/frontend/.expo/
+
+# File di configurazione/tipi generati da Expo
+apps/frontend/expo-env.d.ts
+apps/frontend/expo-dev.d.ts
+
+# File di build nativi temporanei o di configurazione locale di Expo
+apps/frontend/ios/
+apps/frontend/android/
+apps/frontend/*.jks
+apps/frontend/*.p8
+apps/frontend/*.keystore
+
+# ==========================================
+# 7. Certificati e Nginx
+# ==========================================
+# Ignora eventuali certificati futuri dentro nginx/certs, ma tieni il .gitkeep
+nginx/certs/*
+!nginx/certs/.gitkeep
+
+# ==========================================
+# 8. Editor e IDE
+# ==========================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.eslintcache
+.prettiercache
+.cache/
+
+# ==========================================
+# 9. Log e File di Sistema
+# ==========================================
+# Log di debug di npm/yarn/pnpm
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# File di sistema (Mac e Windows)
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Blocca eventuali lockfile annidati se gestisci tutto dalla root
+apps/backend/package-lock.json
+apps/frontend/package-lock.json
+packages/shared/package-lock.json

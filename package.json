@@ -1,0 +1,22 @@
+{
+  "name": "outgrow",
+  "version": "1.0.0",
+  "description": "Social Network per la crescita personale basato su Gamification",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "backend:dev": "npm run dev --workspace=apps/backend",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down",
+    "frontend": "npm run start -w apps/frontend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

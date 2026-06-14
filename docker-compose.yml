@@ -1,0 +1,70 @@
+services:
+  # 1. DATABASE POSTGRESQL
+  db:
+    image: postgres:15-alpine
+    container_name: outgrow_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - ./database:/var/lib/postgresql/data
+      - ./init_db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    networks:
+      - outgrow_network
+
+  # 2. BACKEND API (Express.js)
+  backend:
+    build:
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
+    container_name: outgrow_backend
+    restart: always
+    working_dir: /usr/src/app/apps/backend
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+      - DB_HOST=${DB_HOST} # Specifica il nome del servizio del DB come host
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN} # Aggiunta per completezza dei JWT
+      - DOCKER_ENV=true                  # FONDAMENTALE: attiva il trucco presente in index.js
+      - UPLOAD_PATH=/usr/src/app/apps/backend/uploads
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./apps/backend/uploads:/usr/src/app/apps/backend/uploads
+    depends_on:
+      db:
+        condition: service_healthy # Attende che l'healthcheck del db sia "success"
+    networks:
+      - outgrow_network
+
+  # 3. NGINX REVERSE PROXY
+  nginx:
+    image: nginx:alpine
+    container_name: outgrow_nginx
+    restart: always
+    ports:
+      - "80:80" # Unica porta esposta per il traffico HTTP
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./apps/backend/uploads:/usr/share/nginx/html/uploads:ro
+    depends_on:
+      - backend
+    networks:
+      - outgrow_network
+
+networks:
+  outgrow_network:
+    driver: bridge

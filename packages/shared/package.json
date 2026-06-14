@@ -1,0 +1,17 @@
+{
+  "name": "@outgrow/shared",
+  "version": "1.0.0",
+  "description": "Contratto unificato, DTO e schemi di validazione per Outgrow",
+  "main": "src/index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
