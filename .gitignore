@@ -47,6 +47,8 @@ apps/backend/uploads/profiles/*
 # ==========================================
 # Ignora la cartella locale di Expo (cache, dispositivi connessi, tipi generati automaticamente)
 apps/frontend/.expo/
+.expo/
+.expo-shared/
 
 # File di configurazione/tipi generati da Expo
 apps/frontend/expo-env.d.ts
@@ -101,3 +103,5 @@ Desktop.ini
 apps/backend/package-lock.json
 apps/frontend/package-lock.json
 packages/shared/package-lock.json
+apps/backend/uploads/badges/*
+!apps/backend/uploads/badges/.gitkeep
