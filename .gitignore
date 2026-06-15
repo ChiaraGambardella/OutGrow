@@ -30,7 +30,7 @@ apps/frontend/.env
 # ==========================================
 # Ignora i file di dati effettivi generati da Postgres all'interno del volume locale
 /database/
-
+database_backup*/
 # ==========================================
 # 5. Backend & Uploads
 # ==========================================
