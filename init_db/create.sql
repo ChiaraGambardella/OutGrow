@@ -19,13 +19,17 @@ create table utente(
 	cognome varchar(30) not null,
 	email varchar(100) not null unique,
 	password text not null,
-	username varchar(20) not null unique,
+	username varchar(20) not null,
 	data_di_nascita date not null,
 	foto text null,
 	copertina text null,
 	admin boolean not null default false,
-	check (data_di_nascita <= current_date - interval '16 years')
+
+	check (data_di_nascita <= current_date - interval '16 years'),
+	check (username ~ '^[A-Za-z0-9._]{1,20}$')
 );
+create unique index utente_username_lower_unique
+on utente (lower(username));
 
 create table consenso(
 	utente integer references utente(id) on update cascade on delete cascade,
@@ -73,7 +77,9 @@ create table sfida_completata(
 	difficolta_attesa varchar(10) null,
 	difficolta_percepita varchar(10) null,
 	pubblicazione timestamptz not null default now(),
-	check (
+	anno_settimana integer not null,
+	numero_settimana integer not null,
+check (
         (latitudine is null and longitudine is null and luogo is null)
         or
         (latitudine is not null and longitudine is not null and luogo is not null)
@@ -84,8 +90,10 @@ create unique index unq_sfida_completata
 on sfida_completata(
 	utente,
 	sfida,
-	(extract(isoyear from pubblicazione)),
-	(extract(week from pubblicazione))
+	anno_settimana,
+	numero_settimana
+--	(extract(isoyear from pubblicazione)),
+--	(extract(week from pubblicazione))
 );
 
 create table media(
@@ -142,5 +150,5 @@ create table notifica(
 	contenuto text not null,
 	letta boolean not null default false,
 	ricezione timestamptz not null default now()
-)
+);
 

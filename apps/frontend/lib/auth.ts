@@ -3,6 +3,32 @@ import * as SecureStore from 'expo-secure-store';
 import { apiFetch } from './api';
 
 const TOKEN_KEY = 'outgrow_token';
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+function normalizeBirthDate(birthDate: string) {
+  const value = birthDate.trim();
+
+  // Se arriva già corretta: 1992-01-01
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  // Se per errore arriva come ISO: 1992-01-01T00:00:00.000Z
+  const onlyDate = value.split('T')[0];
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(onlyDate)) {
+    return onlyDate;
+  }
+
+  return value;
+}
+
 
 export type RegisterPayload = {
   name: string;
@@ -41,37 +67,62 @@ type BackendAuthResponse = {
 
 export type MyProfile = {
   id: number | string;
+
   nome?: string;
   cognome?: string;
+
+  name?: string;
+  surname?: string;
+
   username: string;
+  email?: string;
+
+  initials?: string;
+
   foto?: string | null;
   copertina?: string | null;
+
+  profilePictureUrl?: string | null;
+  coverPictureUrl?: string | null;
+
+  bio?: string | null;
+
   badges?: Array<{
-    id: number | string;
-    titolo?: string;
-    title?: string;
-    immagine?: string | null;
-    icon?: string;
-  }>;
-  posts?: Array<{
-    id: number | string;
-    titoloSfida?: string;
-    title?: string;
-    descrizione?: string;
-    description?: string;
-    luogo?: string | null;
-    location?: string | null;
-    difficoltaAttesa?: string | null;
-    expectedDifficulty?: string | null;
-    difficoltaPercepita?: string | null;
-    perceivedDifficulty?: string | null;
-  }>;
+  id?: number | string;
+
+  nome?: string;
+  name?: string;
+  titolo?: string;
+  title?: string;
+
+  descrizione?: string;
+  description?: string;
+
+  icona?: string | null;
+  icon?: string | null;
+}>;
+
+  posts?: Array<any>;
+
+  progress?: {
+    completedChallenges: number;
+    earnedBadges: number;
+  };
 };
 
 export async function registerUserApi(payload: RegisterPayload) {
+  const normalizedPayload: RegisterPayload = {
+    ...payload,
+    name: payload.name.trim(),
+    surname: payload.surname.trim(),
+    email: normalizeEmail(payload.email),
+    username: normalizeUsername(payload.username),
+    birthDate: normalizeBirthDate(payload.birthDate),
+  };
+
   const response = await apiFetch<BackendAuthResponse>('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizedPayload),
   });
 
   await SecureStore.setItemAsync(TOKEN_KEY, response.data.token);
@@ -80,9 +131,14 @@ export async function registerUserApi(payload: RegisterPayload) {
 }
 
 export async function loginUserApi(payload: LoginPayload) {
+  const normalizedPayload: LoginPayload = {
+    username: normalizeUsername(payload.username),
+    password: payload.password,
+  };
+
   const response = await apiFetch<BackendAuthResponse>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizedPayload),
   });
 
   await SecureStore.setItemAsync(TOKEN_KEY, response.data.token);
