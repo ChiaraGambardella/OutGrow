@@ -17,7 +17,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 3s
       timeout: 3s
-      retries: 5
+      retries: 30
+      start_period: 30s
     networks:
       - outgrow_network
 
