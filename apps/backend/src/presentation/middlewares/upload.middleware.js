@@ -46,25 +46,37 @@ export const uploadMedia = multer({
   limits: {
     fileSize: 100 * 1024 * 1024 // 100MB massimo
   }
-}).single('media'); // 'media' è il nome della chiave del pacchetto FormData che userà Axios
+}).array('media', 5); // 'media' è il nome della chiave del pacchetto FormData che userà Axios
 
 // 5. Un secondo middleware di controllo specifico per stringere le maglie (Immagini max 10MB)
 export const validateMediaSize = (req, res, next) => {
-  // Se non è stato caricato nessun file, andiamo avanti (il media è opzionale)
-  if (!req.file) return next();
+  const files = req.files || [];
 
-  const isImage = req.file.mimetype.startsWith('image/');
-  const imageMaxSize = 10 * 1024 * 1024; // 10MB
+  if (files.length === 0) return next();
 
-  if (isImage && req.file.size > imageMaxSize) {
-    // Rimuoviamo il file appena salvato per non sprecare spazio sul server
-    fs.unlinkSync(req.file.path);
-    
-    return res.status(400).json({
-      status: 'error',
-      type: 'ValidationError',
-      errors: [{ field: 'media', message: "L'immagine del post non può superare i 10MB" }] // Allineato al tuo schema
-    });
+  const imageMaxSize = 10 * 1024 * 1024;
+
+  for (const file of files) {
+    const isImage = file.mimetype.startsWith('image/');
+
+    if (isImage && file.size > imageMaxSize) {
+      for (const uploadedFile of files) {
+        if (fs.existsSync(uploadedFile.path)) {
+          fs.unlinkSync(uploadedFile.path);
+        }
+      }
+
+      return res.status(400).json({
+        status: 'error',
+        type: 'ValidationError',
+        errors: [
+          {
+            field: 'media',
+            message: "Ogni immagine del post non può superare i 10MB",
+          },
+        ],
+      });
+    }
   }
 
   next();

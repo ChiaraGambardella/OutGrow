@@ -22,7 +22,7 @@ export class SfidaCompletataController {
         utenteLoggatoId,
         sfidaId,
         req.body,
-        req.file // Multer popola req.file per upload singoli (.single)
+        req.files || [] // Multer popola req.file per upload singoli (.single)
       );
 
       const postFormattato = SfidaCompletataResponseDto.format(risultato.sfida, risultato.media);

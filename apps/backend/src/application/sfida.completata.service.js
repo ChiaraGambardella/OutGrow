@@ -14,7 +14,7 @@ export class SfidaCompletataService {
     this.badgeOttenutoRepository = badgeOttenutoRepository;
   }
 
-  async addSfidaCompletata(utenteId, sfidaId, data, file = null) {
+  async addSfidaCompletata(utenteId, sfidaId, data, files = []) {
     // 1. Validazione esistenza sfida
     const sfidaEsistente = await this.sfidaRepository.findById(sfidaId);
     if (!sfidaEsistente) {
@@ -26,7 +26,7 @@ export class SfidaCompletataService {
 
     // 2. Analisi dei consensi richiesti dall'azione corrente
     const tipiDaVerificare = [];
-    if (file) {
+    if (files.length > 0) {
       // Determiniamo il tipo in base alla logica della sorgente o del file passato
       if (data.sorgenteMedia === 'galleria') tipiDaVerificare.push('Galleria');
       if (data.sorgenteMedia === 'fotocamera') tipiDaVerificare.push('Fotocamera');
@@ -73,12 +73,14 @@ export class SfidaCompletataService {
 
     // 4. Persistenza del Media (Usa la colonna 'url')
     const mediaSalvati = [];
-    if (file) {
+
+    for (const file of files) {
       const nuovoMedia = new Media({
         sfida_completata: sfidaSalvata.id,
         tipo: file.mimetype.startsWith('image/') ? 'Immagine' : 'Video',
-        url: `uploads/posts/${file.filename}` // Coerente con la colonna 'url' del DB
+        url: `uploads/posts/${file.filename}`,
       });
+
       const mediaSalvato = await this.mediaRepository.create(nuovoMedia);
       mediaSalvati.push(mediaSalvato);
     }

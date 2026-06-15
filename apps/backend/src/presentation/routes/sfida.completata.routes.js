@@ -8,7 +8,7 @@ import { SfidaRepository } from '../../infrastructure/repositories/sfida.reposit
 import { LikeSfidaCompletataRepository } from '../../infrastructure/repositories/like.sfida.completata.repository.js';
 import { BadgeOttenutoRepository } from '../../infrastructure/repositories/badge.ottenuto.repository.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
-import { uploadMedia } from '../middlewares/upload.middleware.js'; // La tua istanza Multer reale
+import { uploadMedia, validateMediaSize } from '../middlewares/upload.middleware.js'; // La tua istanza Multer reale
 import { validateBody } from '../middlewares/validation.middleware.js'; // Il tuo middleware di validazione
 import { CompleteChallengeSchema } from '../../../../../packages/shared/src/schemas.js';
 
@@ -38,6 +38,7 @@ router.post(
   '/:sfidaId',
   requireAuth,
   uploadMedia, 
+  validateMediaSize,
   validateBody(CompleteChallengeSchema),
   sfidaCompletataController.addSfidaCompletata
 );
