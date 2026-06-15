@@ -152,3 +152,21 @@ create table notifica(
 	ricezione timestamptz not null default now()
 );
 
+INSERT INTO badge (titolo, immagine) VALUES
+('Skillato', 'uploads/badges/badge.skill.png'),
+('Progettista', 'uploads/badges/badge.presentazione.jpg');
+
+INSERT INTO sfida (titolo, descrizione, immagine, badge) VALUES
+(
+  'Impara una nuova skill',
+  'C’è qualcosa che hai sempre voluto imparare, ma che hai rimandato perché sembrava difficile, inutile o fuori dalla tua zona di comfort? Questa settimana scegli una piccola skill concreta e dedicaci del tempo: può essere una tecnica creativa, uno strumento digitale, una ricetta, una parola in una nuova lingua, una funzione di un software o qualsiasi abilità che ti faccia sentire in crescita. Non serve diventare esperto: l’obiettivo è iniziare, superare il blocco iniziale e raccontare cosa hai scoperto di te mentre imparavi qualcosa di nuovo.',
+  'uploads/posts/sfida.skill.jpg',
+  1
+),
+(
+  'Presenta il progetto',
+  'È il momento di dare valore al percorso fatto. Questa settimana prepara una breve presentazione del tuo progetto, della tua idea o di un risultato che hai raggiunto. Prova a spiegare non solo cosa hai creato, ma anche quali difficoltà hai affrontato, quali scelte hai fatto e cosa hai imparato lungo il percorso. L’obiettivo non è essere perfetti, ma allenarti a comunicare con sicurezza, raccontare il tuo lavoro e trasformare l’esperienza in consapevolezza.',
+  'uploads/posts/sfida.presentazione.jpg',
+  2
+);
+
