@@ -1,5 +1,22 @@
 import pool from '../database/db.js';
 import Utente from '../../domain/utente.entity.js';
+function formatDateOnly(value) {
+  if (!value) return value;
+
+  if (typeof value === 'string') {
+    return value.split('T')[0];
+  }
+
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return value;
+}
 
 export class UtenteRepository {
 
@@ -38,9 +55,7 @@ export class UtenteRepository {
       utente.password,
       utente.username,
       // Converte l'oggetto Date in stringa YYYY-MM-DD usando lo standard canadese (en-CA)
-      utente.data_di_nascita instanceof Date 
-        ? utente.data_di_nascita.toLocaleDateString('en-CA') 
-        : utente.data_di_nascita,
+      formatDateOnly(utente.data_di_nascita),
       utente.foto,
       utente.copertina,
       utente.admin
