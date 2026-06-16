@@ -73,13 +73,25 @@ export const BirthDateSchema = z
   });
 
 export const RegisterStep1Schema = z.object({
-  name: z.string().trim().min(1, {
-    message: 'Il nome è obbligatorio',
-  }),
+  name: z
+    .string()
+    .trim()
+    .min(1, {
+      message: 'Il nome è obbligatorio',
+    })
+    .regex(/^[\p{L}\s']+$/u, {
+      message: 'Il nome può contenere solo lettere, spazi o apostrofi',
+    }),
 
-  surname: z.string().trim().min(1, {
-    message: 'Il cognome è obbligatorio',
-  }),
+  surname: z
+    .string()
+    .trim()
+    .min(1, {
+      message: 'Il cognome è obbligatorio',
+    })
+    .regex(/^[\p{L}\s']+$/u, {
+      message: 'Il cognome può contenere solo lettere, spazi o apostrofi',
+    }),
 
   birthDate: BirthDateSchema,
 
