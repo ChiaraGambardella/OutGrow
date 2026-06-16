@@ -83,51 +83,45 @@ export default function Settings() {
     }
   }
 
-  async function handleUpdatePassword() {
-    if (isLoading) {
-      return;
-    }
-
-    const validation = UpdatePasswordSchema.safeParse({
-      oldPassword,
-      newPassword,
-      confirmPassword,
-    });
-
-    if (!validation.success) {
-      setError(getFirstValidationMessage(validation.error));
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError('');
-
-      await updatePasswordApi({
-        oldPassword: validation.data.oldPassword,
-        newPassword: validation.data.newPassword,
-        confirmPassword: validation.data.confirmPassword,
-      });
-
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordFormVisible(false);
-
-      Alert.alert(
-        'Password aggiornata',
-        'La tua password è stata modificata correttamente.'
-      );
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Impossibile aggiornare la password.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
+async function handleUpdatePassword() {
+  if (isLoading) {
+    return;
   }
+
+  const validation = UpdatePasswordSchema.safeParse({
+    oldPassword,
+    newPassword,
+    confirmPassword,
+  });
+
+  if (!validation.success) {
+    setError(getFirstValidationMessage(validation.error));
+    return;
+  }
+
+  try {
+  setIsLoading(true);
+  setError('');
+
+  await updatePasswordApi({
+    oldPassword: validation.data.oldPassword,
+    newPassword: validation.data.newPassword,
+    confirmPassword: validation.data.confirmPassword,
+  });
+
+  await logoutUser();
+  router.replace('/login');
+  return;
+} catch (error) {
+  setError(
+    error instanceof Error
+      ? error.message
+      : 'Impossibile aggiornare la password.'
+  );
+} finally {
+  setIsLoading(false);
+}
+}
 
   return (
     <Screen>
@@ -356,13 +350,18 @@ function PasswordInput({
   return (
     <View style={styles.passwordField}>
       <TextInput
-        style={styles.passwordInput}
-        placeholder={placeholder}
-        placeholderTextColor="#7A7F9A"
-        secureTextEntry={!showPassword}
-        value={value}
-        onChangeText={onChangeText}
-      />
+          style={styles.passwordInput}
+          placeholder={placeholder}
+          placeholderTextColor="#7A7F9A"
+          secureTextEntry={!showPassword}
+          value={value}
+          onChangeText={onChangeText}
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="none"
+          autoComplete="off"
+          importantForAutofill="no"
+        />
 
       <Pressable
         hitSlop={10}

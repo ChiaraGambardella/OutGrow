@@ -165,15 +165,11 @@ export default function Header({
         confirmPassword: validation.data.confirmPassword,
       });
 
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordFormVisible(false);
+     await logoutUser();
+        closeMenu();
+        router.replace('/login');
+        return;
 
-      Alert.alert(
-        'Password aggiornata',
-        'La tua password è stata modificata correttamente.'
-      );
     } catch (error) {
       setError(
         error instanceof Error
