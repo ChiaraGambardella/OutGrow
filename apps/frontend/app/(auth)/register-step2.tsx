@@ -206,14 +206,21 @@ export default function RegisterStep2() {
             </Pressable>
 
             <Text style={styles.termsText}>
-              Accetto i termini di servizio e la{' '}
-              <Text
-                style={styles.privacyLink}
-                onPress={() => router.push('/(auth)/privacy-policy')}
-              >
-                privacy policy
-              </Text>
-            </Text>
+  Accetto i{' '}
+  <Text
+    style={styles.privacyLink}
+    onPress={() => router.push('/(auth)/terms-of-service')}
+  >
+    termini di servizio
+  </Text>
+  {' '}e la{' '}
+  <Text
+    style={styles.privacyLink}
+    onPress={() => router.push('/(auth)/privacy-policy')}
+  >
+    privacy policy
+  </Text>
+</Text>
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}

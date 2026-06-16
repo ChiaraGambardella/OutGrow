@@ -4,11 +4,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
@@ -60,6 +62,23 @@ function getFullName(profile: MyProfile) {
 
   return [profile.nome, profile.cognome].filter(Boolean).join(' ');
 }
+type ProfileMedia = {
+  id: number | string;
+  tipo: 'Immagine' | 'Video';
+  url: string;
+};
+
+type SelectedMedia = {
+  url: string;
+  tipo: 'Immagine' | 'Video';
+};
+
+function formatDifficulty(value?: string | null) {
+  if (value === 'facile') return 'Bassa';
+  if (value === 'medio') return 'Media';
+  if (value === 'difficile') return 'Alta';
+  return 'Non indicata';
+}
 
 export default function Profile() {
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -72,6 +91,8 @@ export default function Profile() {
       setError('');
 
       const data = await getMyProfile();
+      console.log('PROFILO COMPLETO:', JSON.stringify(data, null, 2));
+      console.log('PRIMO POST PROFILO:', data.posts?.[0]);
       setProfile(data);
     } catch (error) {
       const message =
@@ -238,18 +259,15 @@ export default function Profile() {
               <PostPreview
                 key={String(post.id)}
                 title={post.title ?? post.titoloSfida ?? 'Sfida completata'}
-                location={post.location ?? post.luogo ?? 'Luogo non inserito'}
+                location={post.location ?? post.luogo ?? null}
                 description={
                   post.description ??
                   post.descrizione ??
                   'Nessuna descrizione inserita.'
                 }
-                expectedDifficulty={
-                  post.expectedDifficulty ?? post.difficoltaAttesa ?? '—'
-                }
-                perceivedDifficulty={
-                  post.perceivedDifficulty ?? post.difficoltaPercepita ?? '—'
-                }
+                expectedDifficulty={post.expectedDifficulty ?? post.difficoltaAttesa}
+                perceivedDifficulty={post.perceivedDifficulty ?? post.difficoltaPercepita}
+                media={post.media ?? []}
               />
             ))
           ) : (
@@ -285,10 +303,11 @@ function Badge({ icon, title }: BadgeProps) {
 
 type PostPreviewProps = {
   title: string;
-  location: string;
+  location?: string | null;
   description: string;
-  expectedDifficulty: string;
-  perceivedDifficulty: string;
+  expectedDifficulty?: string | null;
+  perceivedDifficulty?: string | null;
+  media: ProfileMedia[];
 };
 
 function PostPreview({
@@ -297,23 +316,123 @@ function PostPreview({
   description,
   expectedDifficulty,
   perceivedDifficulty,
+  media,
 }: PostPreviewProps) {
+  const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
+
   return (
     <Card>
       <Text style={styles.postTitle}>{title}</Text>
-      <Text style={styles.postLocation}>📍 {location}</Text>
 
-      <View style={styles.mediaPlaceholder}>
-        <Text style={styles.mediaText}>Foto / video esperienza</Text>
-      </View>
+      {location ? (
+        <Text style={styles.postLocation}>📍 {location}</Text>
+      ) : null}
+
+      {media.length > 0 ? (
+        <View style={styles.mediaGrid}>
+          {media.map((mediaItem) => {
+            const mediaUrl = getMediaUrl(mediaItem.url);
+
+            if (!mediaUrl) return null;
+
+            if (mediaItem.tipo === 'Immagine') {
+              return (
+                <Pressable
+                  key={String(mediaItem.id)}
+                  style={styles.mediaGridItem}
+                  onPress={() =>
+                    setSelectedMedia({
+                      url: mediaUrl,
+                      tipo: 'Immagine',
+                    })
+                  }
+                >
+                  <Image
+                    source={{ uri: mediaUrl }}
+                    style={styles.mediaGridImage}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              );
+            }
+
+            return (
+              <Pressable
+                key={String(mediaItem.id)}
+                style={styles.mediaGridItem}
+                onPress={() =>
+                  setSelectedMedia({
+                    url: mediaUrl,
+                    tipo: 'Video',
+                  })
+                }
+              >
+                <View style={styles.videoTile}>
+                  <Text style={styles.videoIcon}>▶</Text>
+                  <Text style={styles.mediaText}>Video</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.mediaPlaceholder}>
+          <Text style={styles.mediaText}>Foto / video esperienza</Text>
+        </View>
+      )}
 
       <Text style={styles.postDescription}>{description}</Text>
 
       <View style={styles.difficultyRow}>
-        <DifficultyPill label={`Aspettata: ${expectedDifficulty}`} />
-        <DifficultyPill label={`Percepita: ${perceivedDifficulty}`} />
+        <DifficultyPill label={`Aspettata: ${formatDifficulty(expectedDifficulty)}`} />
+        <DifficultyPill label={`Percepita: ${formatDifficulty(perceivedDifficulty)}`} />
       </View>
+
+      <Modal
+        visible={!!selectedMedia}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMedia(null)}
+      >
+        <View style={styles.mediaModalBackdrop}>
+          <Pressable
+            style={styles.modalCloseButton}
+            onPress={() => setSelectedMedia(null)}
+          >
+            <Text style={styles.modalCloseText}>×</Text>
+          </Pressable>
+
+          {selectedMedia?.tipo === 'Immagine' ? (
+            <Image
+              source={{ uri: selectedMedia.url }}
+              style={styles.imageModal}
+              resizeMode="contain"
+            />
+          ) : null}
+
+          {selectedMedia?.tipo === 'Video' ? (
+            <VideoModalPlayer uri={selectedMedia.url} />
+          ) : null}
+        </View>
+      </Modal>
     </Card>
+  );
+}
+
+function VideoModalPlayer({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = false;
+    player.play();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={styles.videoModal}
+      nativeControls
+      allowsFullscreen
+      contentFit="contain"
+    />
   );
 }
 
@@ -332,6 +451,71 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  mediaGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginBottom: 12,
+},
+mediaGridItem: {
+  width: '48%',
+  height: 140,
+  borderRadius: 18,
+  backgroundColor: '#F0F1F7',
+  overflow: 'hidden',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+mediaGridImage: {
+  width: '100%',
+  height: '100%',
+},
+videoTile: {
+  width: '100%',
+  height: '100%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#ECEEFF',
+},
+videoIcon: {
+  color: '#5B5FEF',
+  fontSize: 30,
+  fontWeight: '900',
+  marginBottom: 6,
+},
+mediaModalBackdrop: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+},
+modalCloseButton: {
+  position: 'absolute',
+  top: 52,
+  right: 24,
+  zIndex: 2,
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+modalCloseText: {
+  color: '#FFFFFF',
+  fontSize: 32,
+  lineHeight: 36,
+  fontWeight: '700',
+},
+imageModal: {
+  width: '100%',
+  height: '80%',
+},
+videoModal: {
+  width: '100%',
+  height: '70%',
+},
   errorText: {
     color: '#D64545',
     fontSize: 14,

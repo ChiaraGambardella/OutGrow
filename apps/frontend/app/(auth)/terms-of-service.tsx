@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Screen from '../../components/Screen';
-import { PRIVACY_POLICY_TEXT } from '../../lib/legalTexts';
+import { TERMS_OF_SERVICE_TEXT } from '../../lib/legalTexts';
 
-export default function PrivacyPolicy() {
+export default function TermsOfService() {
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -17,10 +17,10 @@ export default function PrivacyPolicy() {
             <Text style={styles.backText}>‹ Indietro</Text>
           </Pressable>
 
-          <Text style={styles.title}>Informativa sulla Privacy</Text>
+          <Text style={styles.title}>Termini di Servizio</Text>
         </View>
 
-        <LegalText text={PRIVACY_POLICY_TEXT} />
+        <LegalText text={TERMS_OF_SERVICE_TEXT} />
       </ScrollView>
     </Screen>
   );

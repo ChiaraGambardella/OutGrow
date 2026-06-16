@@ -47,6 +47,7 @@ function toProfileResponse({ utente, badges = [], posts = [] }) {
       totaleLike: Number(post.totaleLike ?? 0),
       totaleCommenti: Number(post.totaleCommenti ?? 0),
       messoDaMe: Boolean(post.messoDaMe),
+      media: post.media ?? [],
     })),
 
     progress: {
@@ -67,6 +68,7 @@ export class UtenteController {
 
       const profileData = await this.utenteService.getMyProfile(utenteId);
       const profile = toProfileResponse(profileData);
+      console.log('PROFILE BACKEND FIRST POST:', profile.posts?.[0]);
 
       return res.status(200).json({
         status: 'success',

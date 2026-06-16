@@ -183,27 +183,39 @@ export class UtenteRepository {
    * @param {number} offset 
    */
   async findPostsByUtenteId(utenteId, utenteLoggatoId, limit = 10, offset = 0) {
-  const query = `
-    SELECT 
-      sc.id, 
-      s.titolo AS "titoloSfida", 
-      sc.descrizione, 
-      sc.luogo, 
-      sc.difficolta_attesa AS "difficoltaAttesa",
-      sc.difficolta_percepita AS "difficoltaPercepita",
-      sc.pubblicazione,
-      u.username AS "autoreUsername",
-      u.foto AS "autoreFoto",
-      0 AS "totaleLike",
-      0 AS "totaleCommenti",
-      false AS "messoDaMe"
-    FROM sfida_completata sc
-    JOIN sfida s ON sc.sfida = s.id
-    JOIN utente u ON sc.utente = u.id
-    WHERE sc.utente = $1
-    ORDER BY sc.pubblicazione DESC
-    LIMIT $2 OFFSET $3;
-  `;
+const query = `
+  SELECT 
+    sc.id, 
+    s.titolo AS "titoloSfida", 
+    sc.descrizione, 
+    sc.luogo, 
+    sc.difficolta_attesa AS "difficoltaAttesa",
+    sc.difficolta_percepita AS "difficoltaPercepita",
+    sc.pubblicazione,
+    u.username AS "autoreUsername",
+    u.foto AS "autoreFoto",
+    0 AS "totaleLike",
+    0 AS "totaleCommenti",
+    false AS "messoDaMe",
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', m.id,
+          'tipo', m.tipo,
+          'url', m.url
+        )
+      ) FILTER (WHERE m.id IS NOT NULL),
+      '[]'
+    ) AS media
+  FROM sfida_completata sc
+  JOIN sfida s ON sc.sfida = s.id
+  JOIN utente u ON sc.utente = u.id
+  LEFT JOIN media m ON m.sfida_completata = sc.id
+  WHERE sc.utente = $1
+  GROUP BY sc.id, s.titolo, u.username, u.foto
+  ORDER BY sc.pubblicazione DESC
+  LIMIT $2 OFFSET $3;
+`;
 
   try {
     const result = await pool.query(query, [utenteId, limit, offset]);

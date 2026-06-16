@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
@@ -29,10 +30,10 @@ function getMediaUrl(mediaPath?: string | null) {
 }
 
 function formatDifficulty(value?: string | null) {
-  if (value === 'facile') return 'facile';
-  if (value === 'medio') return 'media';
-  if (value === 'difficile') return 'difficile';
-  return 'non indicata';
+  if (value === 'facile') return 'Bassa';
+  if (value === 'medio') return 'Media';
+  if (value === 'difficile') return 'Alta';
+  return 'Non indicata';
 }
 
 export default function Feed() {
@@ -117,8 +118,13 @@ type PostCardProps = {
   post: FeedPost;
 };
 
+type SelectedMedia = {
+  url: string;
+  tipo: 'Immagine' | 'Video';
+};
+
 function PostCard({ post }: PostCardProps) {
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
 
   return (
     <Card>
@@ -137,7 +143,12 @@ function PostCard({ post }: PostCardProps) {
                 <Pressable
                   key={mediaItem.id}
                   style={styles.mediaGridItem}
-                  onPress={() => setSelectedImageUrl(mediaUrl)}
+                  onPress={() =>
+                    setSelectedMedia({
+                      url: mediaUrl,
+                      tipo: 'Immagine',
+                    })
+                  }
                 >
                   <Image
                     source={{ uri: mediaUrl }}
@@ -149,9 +160,21 @@ function PostCard({ post }: PostCardProps) {
             }
 
             return (
-              <View key={mediaItem.id} style={styles.mediaGridItem}>
-                <Text style={styles.mediaText}>Video</Text>
-              </View>
+              <Pressable
+                key={mediaItem.id}
+                style={styles.mediaGridItem}
+                onPress={() =>
+                  setSelectedMedia({
+                    url: mediaUrl,
+                    tipo: 'Video',
+                  })
+                }
+              >
+                <View style={styles.videoTile}>
+                  <Text style={styles.videoIcon}>▶</Text>
+                  <Text style={styles.mediaText}>Video</Text>
+                </View>
+              </Pressable>
             );
           })}
         </View>
@@ -190,25 +213,50 @@ function PostCard({ post }: PostCardProps) {
       </View>
 
       <Modal
-        visible={!!selectedImageUrl}
+        visible={!!selectedMedia}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedImageUrl(null)}
+        onRequestClose={() => setSelectedMedia(null)}
       >
-        <Pressable
-          style={styles.imageModalBackdrop}
-          onPress={() => setSelectedImageUrl(null)}
-        >
-          {selectedImageUrl ? (
+        <View style={styles.imageModalBackdrop}>
+          <Pressable
+            style={styles.modalCloseButton}
+            onPress={() => setSelectedMedia(null)}
+          >
+            <Text style={styles.modalCloseText}>×</Text>
+          </Pressable>
+
+          {selectedMedia?.tipo === 'Immagine' ? (
             <Image
-              source={{ uri: selectedImageUrl }}
+              source={{ uri: selectedMedia.url }}
               style={styles.imageModal}
               resizeMode="contain"
             />
           ) : null}
-        </Pressable>
+
+          {selectedMedia?.tipo === 'Video' ? (
+            <VideoModalPlayer uri={selectedMedia.url} />
+          ) : null}
+        </View>
       </Modal>
     </Card>
+  );
+}
+
+function VideoModalPlayer({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = false;
+    player.play();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={styles.videoModal}
+      nativeControls
+      allowsFullscreen
+      contentFit="contain"
+    />
   );
 }
 
@@ -266,6 +314,41 @@ const styles = StyleSheet.create({
   gap: 8,
   marginBottom: 12,
 },
+videoTile: {
+  width: '100%',
+  height: '100%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#ECEEFF',
+},
+videoIcon: {
+  color: '#5B5FEF',
+  fontSize: 30,
+  fontWeight: '900',
+  marginBottom: 6,
+},
+modalCloseButton: {
+  position: 'absolute',
+  top: 52,
+  right: 24,
+  zIndex: 2,
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+modalCloseText: {
+  color: '#FFFFFF',
+  fontSize: 32,
+  lineHeight: 36,
+  fontWeight: '700',
+},
+videoModal: {
+  width: '100%',
+  height: '70%',
+},
 mediaGridItem: {
   width: '48%',
   height: 140,
@@ -296,12 +379,6 @@ imageModal: {
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  postImage: {
-    height: 180,
-    width: '100%',
-    borderRadius: 18,
     marginBottom: 12,
   },
   mediaText: {
