@@ -45,7 +45,7 @@ async forgotPassword(email) {
     const duplicate = await this.utenteRepository.checkDuplicated(entityData.email, entityData.username);
     if (duplicate) {
       const field = duplicate.email.toLowerCase() === entityData.email.toLowerCase() ? 'email' : 'username';
-      const error = new Error(`Questo indirizzo ${field} è già registrato.`);
+      const error = new Error(`${field} già in uso.`);
       error.type = 'ConflictError';
       error.field = field;
       throw error;

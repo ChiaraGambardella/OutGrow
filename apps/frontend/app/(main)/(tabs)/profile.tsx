@@ -11,11 +11,12 @@ import {
   View,
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import * as ImagePicker from 'expo-image-picker';
 
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
 import Screen from '../../../components/Screen';
-import { getMyProfile, MyProfile } from '../../../lib/auth';
+import { getMyProfile, MyProfile, updateProfileMediaApi } from '../../../lib/auth';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -84,6 +85,7 @@ export default function Profile() {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
 
   async function loadProfile() {
     try {
@@ -91,8 +93,6 @@ export default function Profile() {
       setError('');
 
       const data = await getMyProfile();
-      console.log('PROFILO COMPLETO:', JSON.stringify(data, null, 2));
-      console.log('PRIMO POST PROFILO:', data.posts?.[0]);
       setProfile(data);
     } catch (error) {
       const message =
@@ -116,6 +116,101 @@ export default function Profile() {
 
   const coverUrl = getMediaUrl(profile?.copertina);
   const avatarUrl = getMediaUrl(profile?.foto ?? profile?.profilePictureUrl);
+
+  function getUploadFileName(uri: string) {
+  const fileName = uri.split('/').pop();
+
+  if (fileName) {
+    return fileName;
+  }
+
+  return `profile-${Date.now()}.jpg`;
+}
+
+async function pickProfilePhoto(source: 'galleria' | 'fotocamera') {
+  if (isUpdatingPhoto) {
+    return;
+  }
+
+  try {
+    setIsUpdatingPhoto(true);
+
+    const permission =
+      source === 'galleria'
+        ? await ImagePicker.requestMediaLibraryPermissionsAsync()
+        : await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Permesso necessario',
+        source === 'galleria'
+          ? 'Per scegliere una foto serve il permesso di accesso alla galleria.'
+          : 'Per scattare una foto serve il permesso di accesso alla fotocamera.'
+      );
+      return;
+    }
+
+    const result =
+      source === 'galleria'
+        ? await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          })
+        : await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          });
+
+    if (result.canceled) {
+      return;
+    }
+
+    const asset = result.assets[0];
+
+    await updateProfileMediaApi({
+      foto: {
+        uri: asset.uri,
+        name: asset.fileName ?? getUploadFileName(asset.uri),
+        type: asset.mimeType ?? 'image/jpeg',
+      },
+      sorgenteMediaFoto: source,
+    });
+
+    await loadProfile();
+
+    Alert.alert('Foto aggiornata', 'La foto profilo è stata aggiornata.');
+  } catch (error) {
+    Alert.alert(
+      'Errore',
+      error instanceof Error
+        ? error.message
+        : 'Impossibile aggiornare la foto profilo.'
+    );
+  } finally {
+    setIsUpdatingPhoto(false);
+  }
+}
+
+function openProfilePhotoMenu() {
+  Alert.alert('Modifica foto profilo', 'Scegli da dove prendere la foto.', [
+    {
+      text: 'Fotocamera',
+      onPress: () => pickProfilePhoto('fotocamera'),
+    },
+    {
+      text: 'Galleria',
+      onPress: () => pickProfilePhoto('galleria'),
+    },
+    {
+      text: 'Annulla',
+      style: 'cancel',
+    },
+  ]);
+}
 
   return (
     <Screen>
@@ -181,14 +276,11 @@ export default function Profile() {
                   styles.photoButton,
                   pressed && styles.pressed,
                 ]}
-                onPress={() =>
-                  Alert.alert(
-                    'Modifica foto',
-                    'Nel prossimo passaggio colleghiamo fotocamera e galleria.'
-                  )
-                }
+                onPress={openProfilePhotoMenu}
               >
-                <Text style={styles.photoButtonText}>Modifica foto</Text>
+                <Text style={styles.photoButtonText}>
+                  {isUpdatingPhoto ? 'Aggiornamento...' : 'Modifica foto'}
+                </Text>
               </Pressable>
             </View>
           </Card>

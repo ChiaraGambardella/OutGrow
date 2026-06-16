@@ -68,7 +68,6 @@ export class UtenteController {
 
       const profileData = await this.utenteService.getMyProfile(utenteId);
       const profile = toProfileResponse(profileData);
-      console.log('PROFILE BACKEND FIRST POST:', profile.posts?.[0]);
 
       return res.status(200).json({
         status: 'success',

@@ -223,6 +223,84 @@ export async function getMyProfile() {
 
   return response.data;
 }
+type ProfileMediaFile = {
+  uri: string;
+  name: string;
+  type: string;
+};
+
+type UpdateProfileMediaPayload = {
+  foto?: ProfileMediaFile;
+  copertina?: ProfileMediaFile;
+  sorgenteMediaFoto?: 'galleria' | 'fotocamera';
+  sorgenteMediaCopertina?: 'galleria' | 'fotocamera';
+};
+
+type UpdateProfileMediaResponse = {
+  status: 'success';
+  message: string;
+  data: {
+    foto?: string | null;
+    copertina?: string | null;
+  };
+};
+
+export async function updateProfileMediaApi(payload: UpdateProfileMediaPayload) {
+  const token = await getToken();
+
+  if (!token) {
+    throw new Error('Sessione non trovata. Effettua di nuovo il login.');
+  }
+
+  const formData = new FormData();
+
+  if (payload.foto) {
+    formData.append('foto', {
+      uri: payload.foto.uri,
+      name: payload.foto.name,
+      type: payload.foto.type,
+    } as unknown as Blob);
+  }
+
+  if (payload.copertina) {
+    formData.append('copertina', {
+      uri: payload.copertina.uri,
+      name: payload.copertina.name,
+      type: payload.copertina.type,
+    } as unknown as Blob);
+  }
+
+  if (payload.sorgenteMediaFoto) {
+    formData.append('sorgenteMediaFoto', payload.sorgenteMediaFoto);
+  }
+
+  if (payload.sorgenteMediaCopertina) {
+    formData.append('sorgenteMediaCopertina', payload.sorgenteMediaCopertina);
+  }
+
+  formData.append(
+    'consensi',
+    JSON.stringify({
+      Galleria:
+        payload.sorgenteMediaFoto === 'galleria' ||
+        payload.sorgenteMediaCopertina === 'galleria',
+      Fotocamera:
+        payload.sorgenteMediaFoto === 'fotocamera' ||
+        payload.sorgenteMediaCopertina === 'fotocamera',
+    })
+  );
+
+  const response = await apiFetch<UpdateProfileMediaResponse>(
+    '/api/utente/profile-media',
+    {
+      method: 'PUT',
+      token,
+      body: formData,
+    }
+  );
+
+  return response.data;
+}
 
 export function getFirstValidationMessage(error: unknown) {
   if (
