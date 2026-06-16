@@ -2,6 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  cancelWeeklyChallengeNotification,
+  scheduleWeeklyChallengeNotification,
+} from '../lib/notifications';
+import {
   Alert,
   Modal,
   Pressable,
@@ -198,15 +202,33 @@ export default function Header({
 } 
 
 
-function handleNewChallengesChange(value: boolean) {
+async function handleNewChallengesChange(value: boolean) {
+  const previousValue = newChallenges;
+
   setNewChallenges(value);
   setError('');
 
-  savePreferences({
-    sfide: value,
-    progressi: progressNotifications,
-    social: socialNotifications,
-  });
+  try {
+    if (value) {
+      await scheduleWeeklyChallengeNotification();
+    } else {
+      await cancelWeeklyChallengeNotification();
+    }
+
+    await savePreferences({
+      sfide: value,
+      progressi: progressNotifications,
+      social: socialNotifications,
+    });
+  } catch (error) {
+    setNewChallenges(previousValue);
+
+    setError(
+      error instanceof Error
+        ? error.message
+        : 'Impossibile aggiornare le notifiche.'
+    );
+  }
 }
 
 function handleProgressNotificationsChange(value: boolean) {
