@@ -26,14 +26,16 @@ export async function apiFetch<T>(
     ? API_BASE_URL.slice(0, -1)
     : API_BASE_URL;
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...rest,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  });
+const isFormData = rest.body instanceof FormData;
+
+const response = await fetch(`${baseUrl}${path}`, {
+  ...rest,
+  headers: {
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...headers,
+  },
+});
 
   const data = await response.json().catch(() => null);
 
