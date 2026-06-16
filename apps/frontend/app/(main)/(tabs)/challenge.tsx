@@ -52,6 +52,7 @@ export default function Challenge() {
     loadChallenge();
   }, [loadChallenge]);
   const imageUrl = getImageUrl(challenge?.immagineSfida);
+  const badgeUrl = getImageUrl(challenge?.badge?.immagine);
   return (
     <Screen>
       <Header title="OutGrow"
@@ -76,7 +77,17 @@ export default function Challenge() {
 
       {challenge && !loading && !error ? (
   <Card>
-    <Text style={styles.title}>{challenge.titolo}</Text>
+    <View style={styles.titleRow}>
+  <Text style={styles.title}>{challenge.titolo}</Text>
+
+  <View style={styles.badgeCircle}>
+    {badgeUrl ? (
+      <Image source={{ uri: badgeUrl }} style={styles.badgeImage} />
+    ) : (
+      <Text style={styles.badgeFallback}>🏅</Text>
+    )}
+  </View>
+</View>
 
     {imageUrl ? (
   <Image
@@ -126,12 +137,35 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     letterSpacing: 1,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#17172F',
-    marginBottom: 14,
-  },
+  titleRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  marginBottom: 14,
+},
+title: {
+  flex: 1,
+  fontSize: 24,
+  fontWeight: '800',
+  color: '#17172F',
+},
+badgeCircle: {
+  width: 58,
+  height: 58,
+  borderRadius: 29,
+  backgroundColor: '#ECEEFF',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden',
+},
+badgeImage: {
+  width: 58,
+  height: 58,
+},
+badgeFallback: {
+  fontSize: 24,
+},
   imagePlaceholder: {
     height: 170,
     borderRadius: 18,

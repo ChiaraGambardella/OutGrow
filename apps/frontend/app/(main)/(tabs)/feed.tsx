@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -117,25 +118,46 @@ type PostCardProps = {
 };
 
 function PostCard({ post }: PostCardProps) {
-  const firstMedia = post.media?.[0];
-  const mediaUrl = getMediaUrl(firstMedia?.url);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   return (
     <Card>
       <Text style={styles.username}>@{post.autore.username}</Text>
       <Text style={styles.postTitle}>{post.titoloSfida}</Text>
 
-      {mediaUrl && firstMedia?.tipo === 'Immagine' ? (
-        <Image
-          source={{ uri: mediaUrl }}
-          style={styles.postImage}
-          resizeMode="cover"
-        />
+      {post.media.length > 0 ? (
+        <View style={styles.mediaGrid}>
+          {post.media.map((mediaItem) => {
+            const mediaUrl = getMediaUrl(mediaItem.url);
+
+            if (!mediaUrl) return null;
+
+            if (mediaItem.tipo === 'Immagine') {
+              return (
+                <Pressable
+                  key={mediaItem.id}
+                  style={styles.mediaGridItem}
+                  onPress={() => setSelectedImageUrl(mediaUrl)}
+                >
+                  <Image
+                    source={{ uri: mediaUrl }}
+                    style={styles.mediaGridImage}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              );
+            }
+
+            return (
+              <View key={mediaItem.id} style={styles.mediaGridItem}>
+                <Text style={styles.mediaText}>Video</Text>
+              </View>
+            );
+          })}
+        </View>
       ) : (
         <View style={styles.mediaBox}>
-          <Text style={styles.mediaText}>
-            {firstMedia?.tipo === 'Video' ? 'Video esperienza' : 'Foto / video esperienza'}
-          </Text>
+          <Text style={styles.mediaText}>Foto / video esperienza</Text>
         </View>
       )}
 
@@ -158,13 +180,34 @@ function PostCard({ post }: PostCardProps) {
 
       <View style={styles.actions}>
         <Text style={styles.action}>
-          {post.interazioni.messoDaMe ? 'Ti piace' : 'Like'} · {post.interazioni.totaleLike}
+          {post.interazioni.messoDaMe ? 'Ti piace' : 'Like'} ·{' '}
+          {post.interazioni.totaleLike}
         </Text>
         <Text style={styles.action}>
           Commenta · {post.interazioni.totaleCommenti}
         </Text>
         <Text style={styles.action}>Segnala</Text>
       </View>
+
+      <Modal
+        visible={!!selectedImageUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedImageUrl(null)}
+      >
+        <Pressable
+          style={styles.imageModalBackdrop}
+          onPress={() => setSelectedImageUrl(null)}
+        >
+          {selectedImageUrl ? (
+            <Image
+              source={{ uri: selectedImageUrl }}
+              style={styles.imageModal}
+              resizeMode="contain"
+            />
+          ) : null}
+        </Pressable>
+      </Modal>
     </Card>
   );
 }
@@ -217,6 +260,36 @@ const styles = StyleSheet.create({
     color: '#17172F',
     marginBottom: 12,
   },
+  mediaGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginBottom: 12,
+},
+mediaGridItem: {
+  width: '48%',
+  height: 140,
+  borderRadius: 18,
+  backgroundColor: '#F0F1F7',
+  overflow: 'hidden',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+mediaGridImage: {
+  width: '100%',
+  height: '100%',
+},
+imageModalBackdrop: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+},
+imageModal: {
+  width: '100%',
+  height: '80%',
+},
   mediaBox: {
     height: 150,
     backgroundColor: '#F0F1F7',
