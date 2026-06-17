@@ -94,12 +94,15 @@ export type MyProfile = {
   name?: string;
   titolo?: string;
   title?: string;
-
+  
   descrizione?: string;
   description?: string;
 
   icona?: string | null;
   icon?: string | null;
+  immagine?: string | null;
+
+  ottenimento?: string;
 }>;
 
   posts?: Array<any>;

@@ -70,7 +70,7 @@ function getFullName(profile: MyProfile) {
 
 function formatDifficulty(value?: string | null) {
   if (value === 'facile') return 'Bassa';
-  if (value === 'medio') return 'Media';
+  if (value === 'media' || value === 'medio') return 'Media';
   if (value === 'difficile') return 'Alta';
 
   return 'Non indicata';
@@ -477,6 +477,7 @@ export default function Profile() {
                     key={String(badge.id)}
                     icon={badge.icon ?? '🎖️'}
                     title={badge.title ?? badge.titolo ?? 'Badge'}
+                    badgePictureUrl={getMediaUrl(badge.immagine)}
                   />
                 ))}
               </View>
@@ -528,13 +529,18 @@ export default function Profile() {
 type BadgeProps = {
   icon: string;
   title: string;
+  badgePictureUrl?: string | null;
 };
 
-function Badge({ icon, title }: BadgeProps) {
+function Badge({ icon, title, badgePictureUrl }: BadgeProps) {
   return (
     <View style={styles.badge}>
       <View style={styles.badgeCircle}>
-        <Text style={styles.badgeIcon}>{icon}</Text>
+        {badgePictureUrl ? (
+          <Image source={{ uri: badgePictureUrl }} style={styles.badgeImage} />
+        ) : (
+          <Text style={styles.badgeIcon}>{icon}</Text>
+        )}
       </View>
 
       <Text style={styles.badgeTitle}>{title}</Text>
@@ -724,6 +730,11 @@ profileImageModalBackdrop: {
   justifyContent: 'center',
   alignItems: 'center',
   padding: 20,
+},
+badgeImage: {
+  width: '100%',
+  height: '100%',
+  resizeMode: 'cover',
 },
 
 profileImageModal: {
