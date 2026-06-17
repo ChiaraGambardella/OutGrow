@@ -44,3 +44,25 @@ export async function getGlobalFeedApi() {
 
   return response.data;
 }
+type ToggleLikeResponse = {
+  status: 'success';
+  message: string;
+  data: {
+    postId: number;
+    liked: boolean;
+  };
+};
+
+export async function togglePostLikeApi(postId: number) {
+  const token = await getToken();
+
+  const response = await apiFetch<ToggleLikeResponse>(
+    `/api/feed/${postId}/like`,
+    {
+      method: 'POST',
+      token,
+    }
+  );
+
+  return response.data;
+}

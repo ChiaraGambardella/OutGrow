@@ -53,8 +53,8 @@ export class FeedController {
       // Passiamo direttamente l'id e il booleano (.liked) al DTO
       const result = LikeToggleResponseDto.format(postId, risultato.liked);
 
-      const message = action === 'added' 
-        ? 'Mi piace aggiunto con successo.' 
+      const message = risultato.liked
+        ? 'Mi piace aggiunto con successo.'
         : 'Mi piace rimosso con successo.';
 
       return res.status(200).json({

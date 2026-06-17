@@ -43,6 +43,14 @@ export type CompleteChallengePayload = {
   difficoltaAttesa?: string;
   difficoltaPercepita?: string;
   media?: ChallengeMedia[];
+  latitude?: number | null;
+  longitude?: number | null;
+  locationName?: string | null;
+  consensi?: {
+    Fotocamera?: boolean;
+    Galleria?: boolean;
+    GNSS?: boolean;
+  };
 };
 
 export async function completeChallengeApi(payload: CompleteChallengePayload) {
@@ -58,6 +66,22 @@ export async function completeChallengeApi(payload: CompleteChallengePayload) {
 
   if (payload.difficoltaPercepita) {
     formData.append('difficoltaPercepita', payload.difficoltaPercepita);
+  }
+
+    if (payload.latitude !== undefined && payload.latitude !== null) {
+    formData.append('latitude', payload.latitude.toString());
+  }
+
+  if (payload.longitude !== undefined && payload.longitude !== null) {
+    formData.append('longitude', payload.longitude.toString());
+  }
+
+  if (payload.locationName) {
+    formData.append('locationName', payload.locationName);
+  }
+
+  if (payload.consensi) {
+    formData.append('consensi', JSON.stringify(payload.consensi));
   }
 
   if (payload.media) {

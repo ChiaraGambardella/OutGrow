@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -13,7 +14,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
 import Screen from '../../../components/Screen';
-import { FeedPost, getGlobalFeedApi } from '../../../lib/feed';
+import { FeedPost, getGlobalFeedApi, togglePostLikeApi } from '../../../lib/feed';
 
 function getMediaUrl(mediaPath?: string | null) {
   if (!mediaPath) return null;
@@ -31,7 +32,7 @@ function getMediaUrl(mediaPath?: string | null) {
 
 function formatDifficulty(value?: string | null) {
   if (value === 'facile') return 'Bassa';
-  if (value === 'medio') return 'Media';
+  if (value === 'media' || value === 'medio') return 'Media';
   if (value === 'difficile') return 'Alta';
   return 'Non indicata';
 }
@@ -62,6 +63,60 @@ export default function Feed() {
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
+
+  async function handleToggleLike(postId: number) {
+  const previousPosts = posts;
+
+  setPosts((currentPosts) =>
+    currentPosts.map((post) => {
+      if (post.id !== postId) {
+        return post;
+      }
+
+      const alreadyLiked = post.interazioni.messoDaMe;
+
+      return {
+        ...post,
+        interazioni: {
+          ...post.interazioni,
+          messoDaMe: !alreadyLiked,
+          totaleLike: alreadyLiked
+            ? Math.max(0, post.interazioni.totaleLike - 1)
+            : post.interazioni.totaleLike + 1,
+        },
+      };
+    })
+  );
+
+  try {
+    const result = await togglePostLikeApi(postId);
+
+    setPosts((currentPosts) =>
+      currentPosts.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+
+        return {
+          ...post,
+          interazioni: {
+            ...post.interazioni,
+            messoDaMe: result.liked,
+          },
+        };
+      })
+    );
+  } catch (error) {
+    setPosts(previousPosts);
+
+    Alert.alert(
+      'Errore',
+      error instanceof Error
+        ? error.message
+        : 'Impossibile aggiornare il like.'
+    );
+  }
+}
 
   return (
     <Screen>
@@ -108,7 +163,13 @@ export default function Feed() {
       ) : null}
 
       {!loading && !error
-        ? posts.map((post) => <PostCard key={post.id} post={post} />)
+        ? posts.map((post) => (
+    <PostCard
+      key={post.id}
+      post={post}
+      onToggleLike={handleToggleLike}
+    />
+  ))
         : null}
     </Screen>
   );
@@ -116,6 +177,7 @@ export default function Feed() {
 
 type PostCardProps = {
   post: FeedPost;
+  onToggleLike: (postId: number) => void;
 };
 
 type SelectedMedia = {
@@ -123,7 +185,7 @@ type SelectedMedia = {
   tipo: 'Immagine' | 'Video';
 };
 
-function PostCard({ post }: PostCardProps) {
+function PostCard({ post, onToggleLike }: PostCardProps) {
   const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
   const authorAvatarUrl = getMediaUrl(post.autore.foto);
 
@@ -145,80 +207,104 @@ function PostCard({ post }: PostCardProps) {
 
           <Text style={styles.username}>@{post.autore.username}</Text>
         </View>
-      <Text style={styles.postTitle}>{post.titoloSfida}</Text>
+     <Text style={styles.postTitle}>{post.titoloSfida}</Text>
 
-      {post.media.length > 0 ? (
-        <View style={styles.mediaGrid}>
-          {post.media.map((mediaItem) => {
-            const mediaUrl = getMediaUrl(mediaItem.url);
+{post.descrizione ? (
+  <Text style={styles.description}>{post.descrizione}</Text>
+) : null}
 
-            if (!mediaUrl) return null;
+{post.luogo ? (
+  <Text style={styles.location}>📍 {post.luogo}</Text>
+) : null}
 
-            if (mediaItem.tipo === 'Immagine') {
-              return (
-                <Pressable
-                  key={mediaItem.id}
-                  style={styles.mediaGridItem}
-                  onPress={() =>
-                    setSelectedMedia({
-                      url: mediaUrl,
-                      tipo: 'Immagine',
-                    })
-                  }
-                >
-                  <Image
-                    source={{ uri: mediaUrl }}
-                    style={styles.mediaGridImage}
-                    resizeMode="cover"
-                  />
-                </Pressable>
-              );
+{post.media.length > 0 ? (
+  <View style={styles.mediaGrid}>
+    {post.media.map((mediaItem) => {
+      const mediaUrl = getMediaUrl(mediaItem.url);
+
+      if (!mediaUrl) return null;
+
+      if (mediaItem.tipo === 'Immagine') {
+        return (
+          <Pressable
+            key={mediaItem.id}
+            style={styles.mediaGridItem}
+            onPress={() =>
+              setSelectedMedia({
+                url: mediaUrl,
+                tipo: 'Immagine',
+              })
             }
+          >
+            <Image
+              source={{ uri: mediaUrl }}
+              style={styles.mediaGridImage}
+              resizeMode="cover"
+            />
+          </Pressable>
+        );
+      }
 
-            return (
-              <Pressable
-                key={mediaItem.id}
-                style={styles.mediaGridItem}
-                onPress={() =>
-                  setSelectedMedia({
-                    url: mediaUrl,
-                    tipo: 'Video',
-                  })
-                }
-              >
-                <VideoThumbnail uri={mediaUrl} />
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : (
-        <View style={styles.mediaBox}>
-          <Text style={styles.mediaText}>Foto / video esperienza</Text>
-        </View>
-      )}
+      return (
+        <Pressable
+          key={mediaItem.id}
+          style={styles.mediaGridItem}
+          onPress={() =>
+            setSelectedMedia({
+              url: mediaUrl,
+              tipo: 'Video',
+            })
+          }
+        >
+          <VideoThumbnail uri={mediaUrl} />
+        </Pressable>
+      );
+    })}
+  </View>
+) : null}
 
-      {post.luogo ? (
-        <Text style={styles.location}>📍 {post.luogo}</Text>
-      ) : null}
+      {post.difficoltaAttesa || post.difficoltaPercepita ? (
+  <View style={styles.difficultyRow}>
+    {post.difficoltaAttesa ? (
+      <Text style={styles.difficulty}>
+        Aspettata: {formatDifficulty(post.difficoltaAttesa)}
+      </Text>
+    ) : null}
 
-      {post.descrizione ? (
-        <Text style={styles.description}>{post.descrizione}</Text>
-      ) : null}
-
-      <View style={styles.difficultyRow}>
-        <Text style={styles.difficulty}>
-          Aspettata: {formatDifficulty(post.difficoltaAttesa)}
-        </Text>
-        <Text style={styles.difficulty}>
-          Percepita: {formatDifficulty(post.difficoltaPercepita)}
-        </Text>
-      </View>
+    {post.difficoltaPercepita ? (
+      <Text style={styles.difficulty}>
+        Percepita: {formatDifficulty(post.difficoltaPercepita)}
+      </Text>
+    ) : null}
+  </View>
+) : null}
 
       <View style={styles.actions}>
-        <Text style={styles.action}>
-          {post.interazioni.messoDaMe ? 'Ti piace' : 'Like'} ·{' '}
-          {post.interazioni.totaleLike}
-        </Text>
+        <Pressable
+  style={({ pressed }) => [
+    styles.likeButton,
+    pressed && styles.pressed,
+  ]}
+  onPress={() => onToggleLike(post.id)}
+>
+  <Text
+    style={[
+      styles.likeIcon,
+      post.interazioni.messoDaMe && styles.likeIconActive,
+    ]}
+  >
+    {post.interazioni.messoDaMe ? '♥' : '♡'}
+  </Text>
+
+  <Text
+    style={[
+      styles.action,
+      post.interazioni.messoDaMe && styles.actionActive,
+    ]}
+  >
+    {post.interazioni.totaleLike}
+  </Text>
+</Pressable>
         <Text style={styles.action}>
           Commenta · {post.interazioni.totaleCommenti}
         </Text>
@@ -429,6 +515,26 @@ imageModalBackdrop: {
 imageModal: {
   width: '100%',
   height: '80%',
+},
+likeButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 4,
+},
+
+likeIcon: {
+  color: '#5B5FEF',
+  fontSize: 20,
+  fontWeight: '900',
+  marginTop: -1,
+},
+
+likeIconActive: {
+  color: '#5B5FEF',
+},
+
+actionActive: {
+  color: '#5B5FEF',
 },
   mediaBox: {
     height: 150,
