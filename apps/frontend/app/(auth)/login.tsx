@@ -13,7 +13,7 @@ import {
 import AppButton from '../../components/AppButton';
 import Screen from '../../components/Screen';
 import { getFirstValidationMessage, loginUserApi } from '../../lib/auth';
-import { LoginSchema } from '../../lib/schemas';
+import { LoginSchema } from '@outgrow/shared';
 
 export default function Login() {
   const [username, setUsername] = useState('');

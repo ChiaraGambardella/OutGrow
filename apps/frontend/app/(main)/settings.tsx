@@ -20,7 +20,7 @@ import {
   updateEmailApi,
   updatePasswordApi,
 } from '../../lib/auth';
-import { UpdateEmailSchema, UpdatePasswordSchema } from '../../lib/schemas';
+import { UpdateEmailSchema, UpdatePasswordSchema } from '@outgrow/shared';
 
 export default function Settings() {
   const [newChallenges, setNewChallenges] = useState(false);

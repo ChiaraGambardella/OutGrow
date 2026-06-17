@@ -14,7 +14,7 @@ import {
   forgotPasswordApi,
   getFirstValidationMessage,
 } from '../../lib/auth';
-import { ForgotPasswordSchema } from '../../lib/schemas';
+import { ForgotPasswordSchema } from '@outgrow/shared';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');

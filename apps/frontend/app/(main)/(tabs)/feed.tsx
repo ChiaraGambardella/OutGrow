@@ -249,6 +249,18 @@ function VideoModalPlayer({ uri }: { uri: string }) {
     player.play();
   });
 
+  useEffect(() => {
+    const subscription = player.addListener('statusChange', ({ status }) => {
+      if (status === 'idle') {
+        player.currentTime = 0;
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [player]);
+
   return (
     <VideoView
       player={player}

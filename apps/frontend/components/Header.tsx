@@ -24,7 +24,7 @@ import {
   updatePasswordApi,
   updatePreferencesApi,
 } from '../lib/auth';
-import { UpdateEmailSchema, UpdatePasswordSchema } from '../lib/schemas';
+import { UpdateEmailSchema, UpdatePasswordSchema } from '@outgrow/shared';
 
 type HeaderProps = {
   title: string;
