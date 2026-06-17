@@ -15,7 +15,7 @@ import {
   getFirstValidationMessage,
   registerUserApi,
 } from '../../lib/auth';
-import { RegisterSchema } from '../../lib/schemas';
+import { RegisterSchema } from '@outgrow/shared';
 
 function getParamValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value ?? '';
@@ -74,7 +74,7 @@ export default function RegisterStep2() {
       await registerUserApi({
         name: validation.data.name,
         surname: validation.data.surname,
-        birthDate: validation.data.birthDate.toISOString(),
+        birthDate,
         email: validation.data.email,
         username: validation.data.username,
         password: validation.data.password,

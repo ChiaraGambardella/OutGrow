@@ -13,7 +13,7 @@ import {
 import AppButton from '../../components/AppButton';
 import Screen from '../../components/Screen';
 import { getFirstValidationMessage } from '../../lib/auth';
-import { RegisterStep1Schema } from '../../lib/schemas';
+import { RegisterStep1Schema } from '@outgrow/shared';
 
 function formatBirthDate(date: Date) {
   return new Intl.DateTimeFormat('it-IT', {
@@ -22,7 +22,13 @@ function formatBirthDate(date: Date) {
     year: 'numeric',
   }).format(date);
 }
+function formatBirthDateForApi(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
 
+  return `${year}-${month}-${day}`;
+}
 export default function RegisterStep1() {
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
@@ -56,7 +62,7 @@ export default function RegisterStep1() {
       params: {
         name: validation.data.name,
         surname: validation.data.surname,
-        birthDate: validation.data.birthDate.toISOString(),
+        birthDate: formatBirthDateForApi(validation.data.birthDate),
         email: validation.data.email,
       },
     });

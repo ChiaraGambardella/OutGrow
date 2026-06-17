@@ -12,7 +12,7 @@
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "backend:dev": "npm run dev --workspace=apps/backend",
-    "docker:up": "docker-compose up --build",
+    "docker:up": "docker-compose up -d --build",
     "docker:down": "docker-compose down",
     "frontend": "npm run start -w apps/frontend"
   },
