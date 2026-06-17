@@ -644,9 +644,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   option: {
+    flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 999,
+    alignItems: 'center',
     backgroundColor: '#F6F7FB',
   },
   optionSelected: {

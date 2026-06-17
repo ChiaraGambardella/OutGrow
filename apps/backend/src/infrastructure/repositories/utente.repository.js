@@ -194,9 +194,14 @@ const query = `
     sc.pubblicazione,
     u.username AS "autoreUsername",
     u.foto AS "autoreFoto",
-    0 AS "totaleLike",
-    0 AS "totaleCommenti",
-    false AS "messoDaMe",
+    COUNT(DISTINCT lsc.utente) AS "totaleLike",
+    COUNT(DISTINCT c.id) AS "totaleCommenti",
+    EXISTS (
+      SELECT 1
+      FROM like_sfida_completata lsc_me
+      WHERE lsc_me.sfida_completata = sc.id
+        AND lsc_me.utente = $2
+  ) AS "messoDaMe",
     COALESCE(
       json_agg(
         json_build_object(
@@ -210,6 +215,8 @@ const query = `
   FROM sfida_completata sc
   JOIN sfida s ON sc.sfida = s.id
   JOIN utente u ON sc.utente = u.id
+  LEFT JOIN like_sfida_completata lsc ON lsc.sfida_completata = sc.id
+  LEFT JOIN commento c ON c.sfida_completata = sc.id
   LEFT JOIN media m ON m.sfida_completata = sc.id
   WHERE sc.utente = $1
   GROUP BY sc.id, s.titolo, u.username, u.foto

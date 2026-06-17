@@ -21,6 +21,7 @@ import {
   MyProfile,
   updateProfileMediaApi,
 } from '../../../lib/auth';
+import { togglePostLikeApi } from '../../../lib/feed';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -94,8 +95,8 @@ export default function Profile() {
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   const [isUpdatingCover, setIsUpdatingCover] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(
-  null
-);
+    null
+  );
 
   async function loadProfile() {
     try {
@@ -126,6 +127,13 @@ export default function Profile() {
 
   const coverUrl = getMediaUrl(profile?.copertina ?? profile?.coverPictureUrl);
   const avatarUrl = getMediaUrl(profile?.foto ?? profile?.profilePictureUrl);
+  const badges = profile
+  ? (((profile as any).badges ??
+    (profile as any).badge ??
+    (profile as any).badgeOttenuti ??
+    (profile as any).badgesOttenuti ??
+    []) as any[])
+    : [];
 
   function getUploadFileName(uri: string) {
     const fileName = uri.split('/').pop();
@@ -388,23 +396,24 @@ export default function Profile() {
                   <Text style={styles.avatarText}>{getInitials(profile)}</Text>
                 )}
               </View>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.photoButton,
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={openProfilePhotoMenu}
-                >
-                  <Text style={styles.photoButtonText}>
-                    {isUpdatingPhoto ? '...' : '✎'}
-                  </Text>
-                </Pressable>
 
-                <Text style={styles.name}>{getFullName(profile)}</Text>
-                <Text style={styles.username}>@{profile.username}</Text>
-                              
+              <Pressable
+                style={({ pressed }) => [
+                  styles.photoButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={openProfilePhotoMenu}
+              >
+                <Text style={styles.photoButtonText}>
+                  {isUpdatingPhoto ? '...' : '✎'}
+                </Text>
+              </Pressable>
+
+              <Text style={styles.name}>{getFullName(profile)}</Text>
+              <Text style={styles.username}>@{profile.username}</Text>
             </View>
           </View>
+
           <Modal
             visible={!!selectedProfileImage}
             transparent
@@ -428,6 +437,7 @@ export default function Profile() {
               ) : null}
             </View>
           </Modal>
+
           <Pressable
             style={({ pressed }) => [
               styles.progressButton,
@@ -470,14 +480,30 @@ export default function Profile() {
               </Pressable>
             </View>
 
-            {profile.badges && profile.badges.length > 0 ? (
+            {badges.length > 0 ? (
               <View style={styles.badgeRow}>
-                {profile.badges.slice(0, 4).map((badge) => (
+                {badges.slice(0, 4).map((badgeData) => (
                   <Badge
-                    key={String(badge.id)}
-                    icon={badge.icon ?? '🎖️'}
-                    title={badge.title ?? badge.titolo ?? 'Badge'}
-                    badgePictureUrl={getMediaUrl(badge.immagine)}
+                    key={String(badgeData.id)}
+                    icon={
+                      badgeData.iconEmoji ??
+                      badgeData.emoji ??
+                      badgeData.icon ??
+                      '🎖️'
+                    }
+                    title={
+                      badgeData.title ??
+                      badgeData.titolo ??
+                      badgeData.nome ??
+                      badgeData.name ??
+                      'Badge'
+                    }
+                    badgePictureUrl={getMediaUrl(
+                      badgeData.immagine ??
+                      badgeData.icona ??
+                      badgeData.image ??
+                      badgeData.url
+                    )}
                   />
                 ))}
               </View>
@@ -493,25 +519,43 @@ export default function Profile() {
           </View>
 
           {profile.posts && profile.posts.length > 0 ? (
-            profile.posts.map((post) => (
-              <PostPreview
-                key={String(post.id)}
-                title={post.title ?? post.titoloSfida ?? 'Sfida completata'}
-                location={post.location ?? post.luogo ?? null}
-                description={
-                  post.description ??
-                  post.descrizione ??
-                  'Nessuna descrizione inserita.'
-                }
-                expectedDifficulty={
-                  post.expectedDifficulty ?? post.difficoltaAttesa
-                }
-                perceivedDifficulty={
-                  post.perceivedDifficulty ?? post.difficoltaPercepita
-                }
-                media={post.media ?? []}
-              />
-            ))
+            profile.posts.map((post) => {
+              const postData = post as any;
+
+              return (
+                <PostPreview
+                  key={String(postData.id)}
+                  postId={Number(postData.id)}
+                  title={postData.title ?? postData.titoloSfida ?? 'Sfida completata'}
+                  location={postData.location ?? postData.luogo ?? null}
+                  description={
+                    postData.description ??
+                    postData.descrizione ??
+                    'Nessuna descrizione inserita.'
+                  }
+                  expectedDifficulty={
+                    postData.expectedDifficulty ?? postData.difficoltaAttesa
+                  }
+                  perceivedDifficulty={
+                    postData.perceivedDifficulty ?? postData.difficoltaPercepita
+                  }
+                  media={postData.media ?? []}
+                  totalLikes={
+                    postData.totalLikes ??
+                    postData.totaleLike ??
+                    postData.interazioni?.totaleLike ??
+                    0
+                  }
+                  totalComments={
+                    postData.totalComments ??
+                    postData.totaleCommenti ??
+                    postData.interazioni?.totaleCommenti ??
+                    0
+                  }
+                  likedByMe={postData.messoDaMe ?? false}
+                />
+              );
+            })
           ) : (
             <Card>
               <Text style={styles.emptyText}>
@@ -527,7 +571,7 @@ export default function Profile() {
 }
 
 type BadgeProps = {
-  icon: string;
+  icon: string | null;
   title: string;
   badgePictureUrl?: string | null;
 };
@@ -539,7 +583,7 @@ function Badge({ icon, title, badgePictureUrl }: BadgeProps) {
         {badgePictureUrl ? (
           <Image source={{ uri: badgePictureUrl }} style={styles.badgeImage} />
         ) : (
-          <Text style={styles.badgeIcon}>{icon}</Text>
+          <Text style={styles.badgeIcon}>{icon ?? '🎖️'}</Text>
         )}
       </View>
 
@@ -549,29 +593,74 @@ function Badge({ icon, title, badgePictureUrl }: BadgeProps) {
 }
 
 type PostPreviewProps = {
+  postId: number;
   title: string;
   location?: string | null;
   description: string;
   expectedDifficulty?: string | null;
   perceivedDifficulty?: string | null;
   media: ProfileMedia[];
+  totalLikes: number;
+  totalComments: number;
+  likedByMe: boolean;
 };
 
 function PostPreview({
+  postId,
   title,
   location,
   description,
   expectedDifficulty,
   perceivedDifficulty,
   media,
+  totalLikes,
+  totalComments,
+  likedByMe,
 }: PostPreviewProps) {
   const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
+  const [isLiked, setIsLiked] = useState(likedByMe);
+  const [likeCount, setLikeCount] = useState(totalLikes);
+  const [isLikeLoading, setIsLikeLoading] = useState(false);
+
+  useEffect(() => {
+    setIsLiked(likedByMe);
+    setLikeCount(totalLikes);
+  }, [likedByMe, totalLikes]);
+
+  async function handleToggleLike() {
+    if (isLikeLoading) {
+      return;
+    }
+
+    const previousLiked = isLiked;
+    const previousCount = likeCount;
+    const nextLiked = !previousLiked;
+
+    setIsLiked(nextLiked);
+    setLikeCount((current) => Math.max(current + (nextLiked ? 1 : -1), 0));
+    setIsLikeLoading(true);
+
+    try {
+      const result = await togglePostLikeApi(postId);
+
+      setIsLiked(result.liked);
+    } catch {
+      setIsLiked(previousLiked);
+      setLikeCount(previousCount);
+    } finally {
+      setIsLikeLoading(false);
+    }
+  }
 
   return (
     <Card>
       <Text style={styles.postTitle}>{title}</Text>
 
-      {location ? <Text style={styles.postLocation}>📍 {location}</Text> : null}
+      <Text style={styles.postDescription}>{description}</Text>
+
+      {location ? (
+        <Text style={styles.postLocation}>📍 {location}</Text>
+      ) : null}
 
       {media.length > 0 ? (
         <View style={styles.mediaGrid}>
@@ -617,21 +706,41 @@ function PostPreview({
             );
           })}
         </View>
-      ) : (
-        <View style={styles.mediaPlaceholder}>
-          <Text style={styles.mediaText}>Foto / video esperienza</Text>
+      ) : null}
+
+      {expectedDifficulty || perceivedDifficulty ? (
+        <View style={styles.difficultyRow}>
+          {expectedDifficulty ? (
+            <DifficultyPill
+              label={`Aspettata: ${formatDifficulty(expectedDifficulty)}`}
+            />
+          ) : null}
+
+          {perceivedDifficulty ? (
+            <DifficultyPill
+              label={`Percepita: ${formatDifficulty(perceivedDifficulty)}`}
+            />
+          ) : null}
         </View>
-      )}
+      ) : null}
 
-      <Text style={styles.postDescription}>{description}</Text>
+      <View style={styles.postActions}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.likeAction,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleToggleLike}
+          disabled={isLikeLoading}
+        >
+          <Text style={[styles.likeIcon, isLiked && styles.likeIconActive]}>
+            {isLiked ? '♥' : '♡'}
+          </Text>
+          <Text style={styles.postAction}>{likeCount}</Text>
+        </Pressable>
 
-      <View style={styles.difficultyRow}>
-        <DifficultyPill
-          label={`Aspettata: ${formatDifficulty(expectedDifficulty)}`}
-        />
-        <DifficultyPill
-          label={`Percepita: ${formatDifficulty(perceivedDifficulty)}`}
-        />
+        <Text style={styles.postAction}>Commenta · {totalComments}</Text>
+        <Text style={styles.postAction}>Segnala</Text>
       </View>
 
       <Modal
@@ -715,32 +824,29 @@ function DifficultyPill({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   coverImageButton: {
-  width: '100%',
-  height: '100%',
-},
-
-avatarImageButton: {
-  width: '100%',
-  height: '100%',
-},
-
-profileImageModalBackdrop: {
-  flex: 1,
-  backgroundColor: 'rgba(0, 0, 0, 0.92)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 20,
-},
-badgeImage: {
-  width: '100%',
-  height: '100%',
-  resizeMode: 'cover',
-},
-
-profileImageModal: {
-  width: '100%',
-  height: '80%',
-},
+    width: '100%',
+    height: '100%',
+  },
+  avatarImageButton: {
+    width: '100%',
+    height: '100%',
+  },
+  profileImageModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  badgeImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  profileImageModal: {
+    width: '100%',
+    height: '80%',
+  },
   loadingText: {
     marginTop: 10,
     color: '#5E6278',
@@ -808,8 +914,6 @@ profileImageModal: {
     fontSize: 18,
     fontWeight: '900',
   },
-  
-  
   avatarImage: {
     width: '100%',
     height: '100%',
@@ -820,60 +924,56 @@ profileImageModal: {
     color: '#5B5FEF',
   },
   profileCard: {
-  marginHorizontal: -20,
-  marginTop: 0,
-  marginBottom: 22,
-  backgroundColor: '#FFFFFF',
-  overflow: 'hidden',
-  shadowColor: '#000',
-  shadowOpacity: 0.06,
-  shadowRadius: 18,
-  shadowOffset: { width: 0, height: 10 },
-  elevation: 4,
-},
-
-cover: {
-  height: 150,
-  width: '100%',
-  backgroundColor: '#ECEEFF',
-  position: 'relative',
-  overflow: 'hidden',
-},
-
-coverImage: {
-  width: '100%',
-  height: '100%',
-  resizeMode: 'cover',
-},
-
-profileInfo: {
-  backgroundColor: '#FFFFFF',
-  alignItems: 'center',
-  paddingHorizontal: 20,
-  paddingBottom: 10,
-  borderBottomLeftRadius: 34,
-  borderBottomRightRadius: 34,
-  position: 'relative',
-},
-
-avatar: {
-  width: 92,
-  height: 92,
-  borderRadius: 46,
-  backgroundColor: '#FFFFFF',
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderWidth: 3,
-  borderColor: '#FFFFFF',
-  marginTop: -46,
-  marginBottom: 10,
-  shadowColor: '#17172F',
-  shadowOpacity: 0.12,
-  shadowRadius: 14,
-  shadowOffset: { width: 0, height: 7 },
-  elevation: 4,
-  overflow: 'hidden',
-},
+    marginHorizontal: -20,
+    marginTop: 0,
+    marginBottom: 22,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  cover: {
+    height: 150,
+    width: '100%',
+    backgroundColor: '#ECEEFF',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  profileInfo: {
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 34,
+    borderBottomRightRadius: 34,
+    position: 'relative',
+  },
+  avatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    marginTop: -46,
+    marginBottom: 10,
+    shadowColor: '#17172F',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 4,
+    overflow: 'hidden',
+  },
   name: {
     fontSize: 20,
     fontWeight: '900',
@@ -890,24 +990,22 @@ avatar: {
     fontSize: 14,
   },
   photoButton: {
-  position: 'absolute',
-  right: 115,
-  top: 10,
-  width: 30,
-  height: 30,
-  borderRadius: 21,
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#F0F1FF',
-  zIndex: 5,
-},
-
-photoButtonText: {
-  color: '#5B5FEF',
-  fontWeight: '900',
-  fontSize: 18,
-},
-
+    position: 'absolute',
+    right: 115,
+    top: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0F1FF',
+    zIndex: 5,
+  },
+  photoButtonText: {
+    color: '#5B5FEF',
+    fontWeight: '900',
+    fontSize: 18,
+  },
   progressButton: {
     minHeight: 58,
     borderRadius: 18,
@@ -941,7 +1039,6 @@ photoButtonText: {
     fontWeight: '300',
     marginTop: -2,
   },
-
   badgeSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -976,6 +1073,7 @@ photoButtonText: {
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
+    overflow: 'hidden',
   },
   badgeIcon: {
     fontSize: 21,
@@ -994,7 +1092,6 @@ photoButtonText: {
     textAlign: 'center',
     marginTop: 14,
   },
-
   postsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1009,23 +1106,22 @@ photoButtonText: {
     color: '#17172F',
   },
   postTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: '#17172F',
-    marginBottom: 4,
-  },
-  postLocation: {
-    color: '#5E6278',
-    fontSize: 13,
     marginBottom: 12,
   },
   postDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#33364D',
-    lineHeight: 20,
+    lineHeight: 21,
+    marginBottom: 10,
+  },
+  postLocation: {
+    color: '#5E6278',
+    fontSize: 14,
     marginBottom: 12,
   },
-
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1045,19 +1141,10 @@ photoButtonText: {
     width: '100%',
     height: '100%',
   },
-  mediaPlaceholder: {
-    height: 120,
-    backgroundColor: '#ECEEFF',
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   mediaText: {
     color: '#5B5FEF',
     fontWeight: '800',
   },
-
   videoTile: {
     width: '100%',
     height: '100%',
@@ -1076,15 +1163,15 @@ photoButtonText: {
     backgroundColor: 'rgba(0, 0, 0, 0.18)',
   },
   videoIcon: {
-    color: '#FFFFFF',
+    color: '#5B5FEF',
     fontSize: 30,
     fontWeight: '900',
   },
-
   difficultyRow: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
+    marginBottom: 14,
   },
   difficultyPill: {
     backgroundColor: '#F6F7FB',
@@ -1095,9 +1182,35 @@ photoButtonText: {
   difficultyText: {
     color: '#5E6278',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#EEF0F6',
+    paddingTop: 12,
+  },
+  likeAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  likeIcon: {
+    color: '#5B5FEF',
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 30,
+  },
+  likeIconActive: {
+    color: '#5B5FEF',
+  },
+  postAction: {
+    color: '#5B5FEF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
   mediaModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -1131,7 +1244,6 @@ photoButtonText: {
     width: '100%',
     height: '70%',
   },
-
   pressed: {
     opacity: 0.75,
   },
