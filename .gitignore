@@ -105,3 +105,10 @@ apps/frontend/package-lock.json
 packages/shared/package-lock.json
 apps/backend/uploads/badges/*
 !apps/backend/uploads/badges/.gitkeep
+# Challenge static assets downloaded separately
+apps/frontend/assets/challenges/*
+!apps/frontend/assets/challenges/.gitkeep
+
+# Challenge uploaded/seed images downloaded separately
+apps/backend/uploads/challenges/*
+!apps/backend/uploads/challenges/.gitkeep

@@ -16,7 +16,11 @@ import * as ImagePicker from 'expo-image-picker';
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
 import Screen from '../../../components/Screen';
-import { getMyProfile, MyProfile, updateProfileMediaApi } from '../../../lib/auth';
+import {
+  getMyProfile,
+  MyProfile,
+  updateProfileMediaApi,
+} from '../../../lib/auth';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -48,7 +52,7 @@ function getInitials(profile: MyProfile | null) {
   }
 
   const nome = profile.nome ?? profile.name ?? '';
-  const cognome = profile.cognome ?? '';
+  const cognome = profile.cognome ?? profile.surname ?? '';
 
   const first = nome.trim()[0] ?? profile.username?.[0] ?? 'U';
   const second = cognome.trim()[0] ?? '';
@@ -57,12 +61,21 @@ function getInitials(profile: MyProfile | null) {
 }
 
 function getFullName(profile: MyProfile) {
-  if (profile.name) {
-    return profile.name;
-  }
+  const nome = profile.nome ?? profile.name ?? '';
+  const cognome = profile.cognome ?? profile.surname ?? '';
+  const fullName = [nome, cognome].filter(Boolean).join(' ').trim();
 
-  return [profile.nome, profile.cognome].filter(Boolean).join(' ');
+  return fullName || profile.username;
 }
+
+function formatDifficulty(value?: string | null) {
+  if (value === 'facile') return 'Bassa';
+  if (value === 'medio') return 'Media';
+  if (value === 'difficile') return 'Alta';
+
+  return 'Non indicata';
+}
+
 type ProfileMedia = {
   id: number | string;
   tipo: 'Immagine' | 'Video';
@@ -74,18 +87,15 @@ type SelectedMedia = {
   tipo: 'Immagine' | 'Video';
 };
 
-function formatDifficulty(value?: string | null) {
-  if (value === 'facile') return 'Bassa';
-  if (value === 'medio') return 'Media';
-  if (value === 'difficile') return 'Alta';
-  return 'Non indicata';
-}
-
 export default function Profile() {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+  const [isUpdatingCover, setIsUpdatingCover] = useState(false);
+  const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(
+  null
+);
 
   async function loadProfile() {
     try {
@@ -114,103 +124,191 @@ export default function Profile() {
     loadProfile();
   }, []);
 
-  const coverUrl = getMediaUrl(profile?.copertina);
+  const coverUrl = getMediaUrl(profile?.copertina ?? profile?.coverPictureUrl);
   const avatarUrl = getMediaUrl(profile?.foto ?? profile?.profilePictureUrl);
 
   function getUploadFileName(uri: string) {
-  const fileName = uri.split('/').pop();
+    const fileName = uri.split('/').pop();
 
-  if (fileName) {
-    return fileName;
+    if (fileName) {
+      return fileName;
+    }
+
+    return `profile-${Date.now()}.jpg`;
   }
 
-  return `profile-${Date.now()}.jpg`;
-}
+  async function pickProfilePhoto(source: 'galleria' | 'fotocamera') {
+    if (isUpdatingPhoto) {
+      return;
+    }
 
-async function pickProfilePhoto(source: 'galleria' | 'fotocamera') {
-  if (isUpdatingPhoto) {
-    return;
-  }
+    try {
+      setIsUpdatingPhoto(true);
 
-  try {
-    setIsUpdatingPhoto(true);
-
-    const permission =
-      source === 'galleria'
-        ? await ImagePicker.requestMediaLibraryPermissionsAsync()
-        : await ImagePicker.requestCameraPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        'Permesso necessario',
+      const permission =
         source === 'galleria'
-          ? 'Per scegliere una foto serve il permesso di accesso alla galleria.'
-          : 'Per scattare una foto serve il permesso di accesso alla fotocamera.'
+          ? await ImagePicker.requestMediaLibraryPermissionsAsync()
+          : await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permesso necessario',
+          source === 'galleria'
+            ? 'Per scegliere una foto serve il permesso di accesso alla galleria.'
+            : 'Per scattare una foto serve il permesso di accesso alla fotocamera.'
+        );
+        return;
+      }
+
+      const result =
+        source === 'galleria'
+          ? await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.85,
+            })
+          : await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.85,
+            });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      await updateProfileMediaApi({
+        foto: {
+          uri: asset.uri,
+          name: asset.fileName ?? getUploadFileName(asset.uri),
+          type: asset.mimeType ?? 'image/jpeg',
+        },
+        sorgenteMediaFoto: source,
+      });
+
+      await loadProfile();
+
+      Alert.alert('Foto aggiornata', 'La foto profilo è stata aggiornata.');
+    } catch (error) {
+      Alert.alert(
+        'Errore',
+        error instanceof Error
+          ? error.message
+          : 'Impossibile aggiornare la foto profilo.'
       );
-      return;
+    } finally {
+      setIsUpdatingPhoto(false);
     }
-
-    const result =
-      source === 'galleria'
-        ? await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.85,
-          })
-        : await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.85,
-          });
-
-    if (result.canceled) {
-      return;
-    }
-
-    const asset = result.assets[0];
-
-    await updateProfileMediaApi({
-      foto: {
-        uri: asset.uri,
-        name: asset.fileName ?? getUploadFileName(asset.uri),
-        type: asset.mimeType ?? 'image/jpeg',
-      },
-      sorgenteMediaFoto: source,
-    });
-
-    await loadProfile();
-
-    Alert.alert('Foto aggiornata', 'La foto profilo è stata aggiornata.');
-  } catch (error) {
-    Alert.alert(
-      'Errore',
-      error instanceof Error
-        ? error.message
-        : 'Impossibile aggiornare la foto profilo.'
-    );
-  } finally {
-    setIsUpdatingPhoto(false);
   }
-}
 
-function openProfilePhotoMenu() {
-  Alert.alert('Modifica foto profilo', 'Scegli da dove prendere la foto.', [
-    {
-      text: 'Fotocamera',
-      onPress: () => pickProfilePhoto('fotocamera'),
-    },
-    {
-      text: 'Galleria',
-      onPress: () => pickProfilePhoto('galleria'),
-    },
-    {
-      text: 'Annulla',
-      style: 'cancel',
-    },
-  ]);
-}
+  async function pickCoverPhoto(source: 'galleria' | 'fotocamera') {
+    if (isUpdatingCover) {
+      return;
+    }
+
+    try {
+      setIsUpdatingCover(true);
+
+      const permission =
+        source === 'galleria'
+          ? await ImagePicker.requestMediaLibraryPermissionsAsync()
+          : await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permesso necessario',
+          source === 'galleria'
+            ? 'Per scegliere una copertina serve il permesso di accesso alla galleria.'
+            : 'Per scattare una copertina serve il permesso di accesso alla fotocamera.'
+        );
+        return;
+      }
+
+      const result =
+        source === 'galleria'
+          ? await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [16, 9],
+              quality: 0.85,
+            })
+          : await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [16, 9],
+              quality: 0.85,
+            });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      await updateProfileMediaApi({
+        copertina: {
+          uri: asset.uri,
+          name: asset.fileName ?? getUploadFileName(asset.uri),
+          type: asset.mimeType ?? 'image/jpeg',
+        },
+        sorgenteMediaCopertina: source,
+      });
+
+      await loadProfile();
+
+      Alert.alert(
+        'Copertina aggiornata',
+        'La foto copertina è stata aggiornata.'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Errore',
+        error instanceof Error
+          ? error.message
+          : 'Impossibile aggiornare la foto copertina.'
+      );
+    } finally {
+      setIsUpdatingCover(false);
+    }
+  }
+
+  function openProfilePhotoMenu() {
+    Alert.alert('Modifica foto profilo', 'Scegli da dove prendere la foto.', [
+      {
+        text: 'Fotocamera',
+        onPress: () => pickProfilePhoto('fotocamera'),
+      },
+      {
+        text: 'Galleria',
+        onPress: () => pickProfilePhoto('galleria'),
+      },
+      {
+        text: 'Annulla',
+        style: 'cancel',
+      },
+    ]);
+  }
+
+  function openCoverPhotoMenu() {
+    Alert.alert('Modifica copertina', 'Scegli da dove prendere la copertina.', [
+      {
+        text: 'Fotocamera',
+        onPress: () => pickCoverPhoto('fotocamera'),
+      },
+      {
+        text: 'Galleria',
+        onPress: () => pickCoverPhoto('galleria'),
+      },
+      {
+        text: 'Annulla',
+        style: 'cancel',
+      },
+    ]);
+  }
 
   return (
     <Screen>
@@ -245,46 +343,91 @@ function openProfilePhotoMenu() {
 
       {!isLoading && profile ? (
         <>
-          <Card style={styles.profileCard}>
+          <View style={styles.profileCard}>
             <View style={styles.cover}>
               {coverUrl ? (
-                <Image source={{ uri: coverUrl }} style={styles.coverImage} />
+                <Pressable
+                  style={styles.coverImageButton}
+                  onPress={() => setSelectedProfileImage(coverUrl)}
+                >
+                  <Image source={{ uri: coverUrl }} style={styles.coverImage} />
+                </Pressable>
               ) : (
-                <>
+                <View style={styles.coverFallback}>
                   <View style={styles.coverCircleLarge} />
                   <View style={styles.coverCircleSmall} />
-                </>
+                </View>
               )}
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.coverEditButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={openCoverPhotoMenu}
+              >
+                <Text style={styles.coverEditButtonText}>
+                  {isUpdatingCover ? '...' : '✎'}
+                </Text>
+              </Pressable>
             </View>
 
-            <View style={styles.avatarWrapper}>
+            <View style={styles.profileInfo}>
               <View style={styles.avatar}>
                 {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+                  <Pressable
+                    style={styles.avatarImageButton}
+                    onPress={() => setSelectedProfileImage(avatarUrl)}
+                  >
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.avatarImage}
+                    />
+                  </Pressable>
                 ) : (
                   <Text style={styles.avatarText}>{getInitials(profile)}</Text>
                 )}
               </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.photoButton,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={openProfilePhotoMenu}
+                >
+                  <Text style={styles.photoButtonText}>
+                    {isUpdatingPhoto ? '...' : '✎'}
+                  </Text>
+                </Pressable>
+
+                <Text style={styles.name}>{getFullName(profile)}</Text>
+                <Text style={styles.username}>@{profile.username}</Text>
+                              
             </View>
-
-            <View style={styles.profileInfo}>
-              <Text style={styles.name}>{getFullName(profile)}</Text>
-              <Text style={styles.username}>@{profile.username}</Text>
-
+          </View>
+          <Modal
+            visible={!!selectedProfileImage}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setSelectedProfileImage(null)}
+          >
+            <View style={styles.profileImageModalBackdrop}>
               <Pressable
-                style={({ pressed }) => [
-                  styles.photoButton,
-                  pressed && styles.pressed,
-                ]}
-                onPress={openProfilePhotoMenu}
+                style={styles.modalCloseButton}
+                onPress={() => setSelectedProfileImage(null)}
               >
-                <Text style={styles.photoButtonText}>
-                  {isUpdatingPhoto ? 'Aggiornamento...' : 'Modifica foto'}
-                </Text>
+                <Text style={styles.modalCloseText}>×</Text>
               </Pressable>
-            </View>
-          </Card>
 
+              {selectedProfileImage ? (
+                <Image
+                  source={{ uri: selectedProfileImage }}
+                  style={styles.profileImageModal}
+                  resizeMode="contain"
+                />
+              ) : null}
+            </View>
+          </Modal>
           <Pressable
             style={({ pressed }) => [
               styles.progressButton,
@@ -300,7 +443,9 @@ function openProfilePhotoMenu() {
             <View>
               <Text style={styles.progressTitle}>Progressi</Text>
               <Text style={styles.progressSubtitle}>
-                {profile.progress?.completedChallenges ?? profile.posts?.length ?? 0}{' '}
+                {profile.progress?.completedChallenges ??
+                  profile.posts?.length ??
+                  0}{' '}
                 sfide completate
               </Text>
             </View>
@@ -357,8 +502,12 @@ function openProfilePhotoMenu() {
                   post.descrizione ??
                   'Nessuna descrizione inserita.'
                 }
-                expectedDifficulty={post.expectedDifficulty ?? post.difficoltaAttesa}
-                perceivedDifficulty={post.perceivedDifficulty ?? post.difficoltaPercepita}
+                expectedDifficulty={
+                  post.expectedDifficulty ?? post.difficoltaAttesa
+                }
+                perceivedDifficulty={
+                  post.perceivedDifficulty ?? post.difficoltaPercepita
+                }
                 media={post.media ?? []}
               />
             ))
@@ -416,9 +565,7 @@ function PostPreview({
     <Card>
       <Text style={styles.postTitle}>{title}</Text>
 
-      {location ? (
-        <Text style={styles.postLocation}>📍 {location}</Text>
-      ) : null}
+      {location ? <Text style={styles.postLocation}>📍 {location}</Text> : null}
 
       {media.length > 0 ? (
         <View style={styles.mediaGrid}>
@@ -459,10 +606,7 @@ function PostPreview({
                   })
                 }
               >
-                <View style={styles.videoTile}>
-                  <Text style={styles.videoIcon}>▶</Text>
-                  <Text style={styles.mediaText}>Video</Text>
-                </View>
+                <VideoThumbnail uri={mediaUrl} />
               </Pressable>
             );
           })}
@@ -476,8 +620,12 @@ function PostPreview({
       <Text style={styles.postDescription}>{description}</Text>
 
       <View style={styles.difficultyRow}>
-        <DifficultyPill label={`Aspettata: ${formatDifficulty(expectedDifficulty)}`} />
-        <DifficultyPill label={`Percepita: ${formatDifficulty(perceivedDifficulty)}`} />
+        <DifficultyPill
+          label={`Aspettata: ${formatDifficulty(expectedDifficulty)}`}
+        />
+        <DifficultyPill
+          label={`Percepita: ${formatDifficulty(perceivedDifficulty)}`}
+        />
       </View>
 
       <Modal
@@ -511,6 +659,29 @@ function PostPreview({
   );
 }
 
+function VideoThumbnail({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = false;
+    player.muted = true;
+    player.pause();
+  });
+
+  return (
+    <View style={styles.videoTile}>
+      <VideoView
+        player={player}
+        style={styles.videoThumbnail}
+        nativeControls={false}
+        contentFit="cover"
+      />
+
+      <View style={styles.videoOverlay}>
+        <Text style={styles.videoIcon}>▶</Text>
+      </View>
+    </View>
+  );
+}
+
 function VideoModalPlayer({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri, (player) => {
     player.loop = false;
@@ -537,77 +708,34 @@ function DifficultyPill({ label }: { label: string }) {
 }
 
 const styles = StyleSheet.create({
+  coverImageButton: {
+  width: '100%',
+  height: '100%',
+},
+
+avatarImageButton: {
+  width: '100%',
+  height: '100%',
+},
+
+profileImageModalBackdrop: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.92)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+},
+
+profileImageModal: {
+  width: '100%',
+  height: '80%',
+},
   loadingText: {
     marginTop: 10,
     color: '#5E6278',
     fontWeight: '700',
     textAlign: 'center',
   },
-  mediaGrid: {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginBottom: 12,
-},
-mediaGridItem: {
-  width: '48%',
-  height: 140,
-  borderRadius: 18,
-  backgroundColor: '#F0F1F7',
-  overflow: 'hidden',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-mediaGridImage: {
-  width: '100%',
-  height: '100%',
-},
-videoTile: {
-  width: '100%',
-  height: '100%',
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#ECEEFF',
-},
-videoIcon: {
-  color: '#5B5FEF',
-  fontSize: 30,
-  fontWeight: '900',
-  marginBottom: 6,
-},
-mediaModalBackdrop: {
-  flex: 1,
-  backgroundColor: 'rgba(0, 0, 0, 0.9)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 20,
-},
-modalCloseButton: {
-  position: 'absolute',
-  top: 52,
-  right: 24,
-  zIndex: 2,
-  width: 42,
-  height: 42,
-  borderRadius: 21,
-  backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-modalCloseText: {
-  color: '#FFFFFF',
-  fontSize: 32,
-  lineHeight: 36,
-  fontWeight: '700',
-},
-imageModal: {
-  width: '100%',
-  height: '80%',
-},
-videoModal: {
-  width: '100%',
-  height: '70%',
-},
   errorText: {
     color: '#D64545',
     fontSize: 14,
@@ -627,21 +755,11 @@ videoModal: {
     color: '#5B5FEF',
     fontWeight: '900',
   },
-  profileCard: {
-    padding: 0,
-    overflow: 'hidden',
-  },
-  cover: {
-    height: 112,
-    backgroundColor: '#ECEEFF',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  coverImage: {
+  coverFallback: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#ECEEFF',
+    position: 'relative',
   },
   coverCircleLarge: {
     position: 'absolute',
@@ -663,66 +781,122 @@ videoModal: {
     bottom: -34,
     opacity: 0.65,
   },
-  avatarWrapper: {
-    alignItems: 'center',
-    marginTop: -42,
-  },
-  avatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#FFFFFF',
+  coverEditButton: {
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    width: 25,
+    height: 25,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#17172F',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 4,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
   },
+  coverEditButtonText: {
+    color: '#5B5FEF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  
+  
   avatarImage: {
     width: '100%',
     height: '100%',
   },
   avatarText: {
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: '900',
     color: '#5B5FEF',
   },
-  profileInfo: {
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingBottom: 20,
-    paddingTop: 8,
-  },
+  profileCard: {
+  marginHorizontal: -20,
+  marginTop: 0,
+  marginBottom: 22,
+  backgroundColor: '#FFFFFF',
+  overflow: 'hidden',
+  shadowColor: '#000',
+  shadowOpacity: 0.06,
+  shadowRadius: 18,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 4,
+},
+
+cover: {
+  height: 150,
+  width: '100%',
+  backgroundColor: '#ECEEFF',
+  position: 'relative',
+  overflow: 'hidden',
+},
+
+coverImage: {
+  width: '100%',
+  height: '100%',
+  resizeMode: 'cover',
+},
+
+profileInfo: {
+  backgroundColor: '#FFFFFF',
+  alignItems: 'center',
+  paddingHorizontal: 20,
+  paddingBottom: 10,
+  borderBottomLeftRadius: 34,
+  borderBottomRightRadius: 34,
+  position: 'relative',
+},
+
+avatar: {
+  width: 92,
+  height: 92,
+  borderRadius: 46,
+  backgroundColor: '#FFFFFF',
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderWidth: 3,
+  borderColor: '#FFFFFF',
+  marginTop: -46,
+  marginBottom: 10,
+  shadowColor: '#17172F',
+  shadowOpacity: 0.12,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 7 },
+  elevation: 4,
+  overflow: 'hidden',
+},
   name: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '900',
     color: '#17172F',
     textAlign: 'center',
+    marginTop: 2,
   },
   username: {
-    color: '#7A7F9A',
-    marginTop: 4,
-    fontWeight: '600',
+    color: '#8B8FA8',
+    marginTop: 2,
+    marginBottom: 12,
+    fontWeight: '800',
     textAlign: 'center',
+    fontSize: 14,
   },
   photoButton: {
-    minHeight: 38,
-    justifyContent: 'center',
-    marginTop: 12,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: '#F3F4FF',
-  },
-  photoButtonText: {
-    color: '#5B5FEF',
-    fontWeight: '800',
-    fontSize: 12,
-  },
+  position: 'absolute',
+  right: 115,
+  top: 10,
+  width: 30,
+  height: 30,
+  borderRadius: 21,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#F0F1FF',
+  zIndex: 5,
+},
+
+photoButtonText: {
+  color: '#5B5FEF',
+  fontWeight: '900',
+  fontSize: 18,
+},
+
   progressButton: {
     minHeight: 58,
     borderRadius: 18,
@@ -756,6 +930,7 @@ videoModal: {
     fontWeight: '300',
     marginTop: -2,
   },
+
   badgeSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -808,6 +983,7 @@ videoModal: {
     textAlign: 'center',
     marginTop: 14,
   },
+
   postsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -832,6 +1008,32 @@ videoModal: {
     fontSize: 13,
     marginBottom: 12,
   },
+  postDescription: {
+    fontSize: 14,
+    color: '#33364D',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+
+  mediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  mediaGridItem: {
+    width: '48%',
+    height: 140,
+    borderRadius: 18,
+    backgroundColor: '#F0F1F7',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaGridImage: {
+    width: '100%',
+    height: '100%',
+  },
   mediaPlaceholder: {
     height: 120,
     backgroundColor: '#ECEEFF',
@@ -844,12 +1046,30 @@ videoModal: {
     color: '#5B5FEF',
     fontWeight: '800',
   },
-  postDescription: {
-    fontSize: 14,
-    color: '#33364D',
-    lineHeight: 20,
-    marginBottom: 12,
+
+  videoTile: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ECEEFF',
+    overflow: 'hidden',
   },
+  videoThumbnail: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+  },
+  videoIcon: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '900',
+  },
+
   difficultyRow: {
     flexDirection: 'row',
     gap: 8,
@@ -866,6 +1086,41 @@ videoModal: {
     fontSize: 12,
     fontWeight: '800',
   },
+
+  mediaModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 52,
+    right: 24,
+    zIndex: 2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: '700',
+  },
+  imageModal: {
+    width: '100%',
+    height: '80%',
+  },
+  videoModal: {
+    width: '100%',
+    height: '70%',
+  },
+
   pressed: {
     opacity: 0.75,
   },

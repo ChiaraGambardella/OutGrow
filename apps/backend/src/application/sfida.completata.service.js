@@ -86,10 +86,10 @@ export class SfidaCompletataService {
     }
 
     // 5. Logica di Assegnazione Automatica del Badge
-    if (sfidaEsistente.badge) {
+    if (sfidaEsistente.badgeId) {
       const nuovoBadgeOttenuto = new BadgeOttenuto({
         utente: utenteId,
-        badge: sfidaEsistente.badge
+        badge: sfidaEsistente.badgeId
       });
       await this.badgeOttenutoRepository.assegnaBadge(nuovoBadgeOttenuto);
     }

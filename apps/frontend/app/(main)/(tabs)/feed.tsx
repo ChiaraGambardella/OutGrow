@@ -125,10 +125,26 @@ type SelectedMedia = {
 
 function PostCard({ post }: PostCardProps) {
   const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
+  const authorAvatarUrl = getMediaUrl(post.autore.foto);
 
   return (
     <Card>
-      <Text style={styles.username}>@{post.autore.username}</Text>
+              <View style={styles.authorRow}>
+          <View style={styles.authorAvatar}>
+            {authorAvatarUrl ? (
+              <Image
+                source={{ uri: authorAvatarUrl }}
+                style={styles.authorAvatarImage}
+              />
+            ) : (
+              <Text style={styles.authorAvatarText}>
+                {post.autore.username?.[0]?.toUpperCase() ?? 'U'}
+              </Text>
+            )}
+          </View>
+
+          <Text style={styles.username}>@{post.autore.username}</Text>
+        </View>
       <Text style={styles.postTitle}>{post.titoloSfida}</Text>
 
       {post.media.length > 0 ? (
@@ -338,7 +354,6 @@ const styles = StyleSheet.create({
   username: {
     color: '#5B5FEF',
     fontWeight: '800',
-    marginBottom: 4,
   },
   postTitle: {
     fontSize: 18,
@@ -467,4 +482,31 @@ imageModal: {
   pressed: {
     opacity: 0.75,
   },
+  authorRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 8,
+},
+
+authorAvatar: {
+  width: 30,
+  height: 30,
+  borderRadius: 15,
+  backgroundColor: '#ECEEFF',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: 8,
+  overflow: 'hidden',
+},
+
+authorAvatarImage: {
+  width: '100%',
+  height: '100%',
+},
+
+authorAvatarText: {
+  color: '#5B5FEF',
+  fontSize: 13,
+  fontWeight: '900',
+},
 });
