@@ -18,6 +18,7 @@ import {
   completeChallengeApi,
   type ChallengeMedia,
 } from '../../lib/challenges';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 const DIFFICULTIES = [
   { label: 'Bassa', value: 'facile' },
@@ -180,13 +181,11 @@ export default function CompleteChallenge() {
           <View style={styles.previewGrid}>
             {media.map((item, index) => (
               <View key={`${item.uri}-${index}`} style={styles.previewItem}>
-                {item.type.startsWith('image/') ? (
-                  <Image source={{ uri: item.uri }} style={styles.previewImage} />
-                ) : (
-                  <View style={styles.videoPreview}>
-                    <Text style={styles.videoPreviewText}>Video</Text>
-                  </View>
-                )}
+               {item.type.startsWith('image/') ? (
+                <Image source={{ uri: item.uri }} style={styles.previewImage} />
+              ) : (
+                <VideoPreview uri={item.uri} />
+              )}
 
                 <Pressable
                   style={styles.removeMediaButton}
@@ -277,6 +276,29 @@ export default function CompleteChallenge() {
   );
 }
 
+function VideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = false;
+    player.muted = true;
+    player.pause();
+  });
+
+  return (
+    <View style={styles.videoPreview}>
+      <VideoView
+        player={player}
+        style={styles.previewImage}
+        nativeControls={false}
+        contentFit="cover"
+      />
+
+      <View style={styles.videoOverlay}>
+        <Text style={styles.videoPreviewText}>▶</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
@@ -344,10 +366,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  videoOverlay: {
+  ...StyleSheet.absoluteFillObject,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: 'rgba(0, 0, 0, 0.18)',
+},
   videoPreviewText: {
-    color: '#5B5FEF',
-    fontWeight: '800',
-  },
+  color: '#FFFFFF',
+  fontSize: 24,
+  fontWeight: '900',
+},
   removeMediaButton: {
     position: 'absolute',
     top: 6,

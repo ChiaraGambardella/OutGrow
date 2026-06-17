@@ -170,10 +170,7 @@ function PostCard({ post }: PostCardProps) {
                   })
                 }
               >
-                <View style={styles.videoTile}>
-                  <Text style={styles.videoIcon}>▶</Text>
-                  <Text style={styles.mediaText}>Video</Text>
-                </View>
+                <VideoThumbnail uri={mediaUrl} />
               </Pressable>
             );
           })}
@@ -272,6 +269,29 @@ function VideoModalPlayer({ uri }: { uri: string }) {
   );
 }
 
+function VideoThumbnail({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = false;
+    player.muted = true;
+    player.pause();
+  });
+
+  return (
+    <View style={styles.videoTile}>
+      <VideoView
+        player={player}
+        style={styles.videoThumbnail}
+        nativeControls={false}
+        contentFit="cover"
+      />
+
+      <View style={styles.videoOverlay}>
+        <Text style={styles.videoIcon}>▶</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   banner: {
     backgroundColor: '#ECEEFF',
@@ -309,6 +329,12 @@ const styles = StyleSheet.create({
     color: '#5B5FEF',
     fontWeight: '800',
   },
+  videoOverlay: {
+  ...StyleSheet.absoluteFillObject,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: 'rgba(0, 0, 0, 0.18)',
+},
   username: {
     color: '#5B5FEF',
     fontWeight: '800',
@@ -332,6 +358,10 @@ videoTile: {
   justifyContent: 'center',
   alignItems: 'center',
   backgroundColor: '#ECEEFF',
+  overflow: 'hidden',
+},
+videoThumbnail: {
+  ...StyleSheet.absoluteFillObject,
 },
 videoIcon: {
   color: '#5B5FEF',
