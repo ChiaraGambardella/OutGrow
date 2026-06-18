@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Pressable,
+  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -58,6 +59,10 @@ export default function Login() {
   return (
     <Screen>
       <View style={styles.headerContainer}>
+        <Image
+          source={require('../../assets/outgrow-logo.png')}
+          style={styles.loginLogo}
+        />
         <Text style={styles.appTitle}>OutGrow</Text>
         <Text style={styles.subtitle}>
           Esci dalla routine. Affronta nuove sfide. {'\n'}Cresci un passo alla
@@ -135,7 +140,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    marginTop: 80,
+    marginTop: 10,
     marginBottom: 24,
     alignItems: 'center',
   },
@@ -204,15 +209,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   registerBottom: {
-    marginTop: 70,
-    marginBottom: 70,
+    marginTop: 60,
+    marginBottom: 60,
   },
   divider: {
     height: 1,
     backgroundColor: '#E4E6F0',
-    marginBottom: 70,
+    marginBottom: 60,
   },
   pressed: {
     opacity: 0.75,
   },
+  loginLogo: {
+  width: 170,
+  height: 170,
+  resizeMode: 'contain',
+  alignSelf: 'center',
+  marginBottom: 0,
+},
 });

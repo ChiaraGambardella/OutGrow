@@ -8,6 +8,7 @@ import {
 import {
   Alert,
   Modal,
+  Image,
   Pressable,
   StyleSheet,
   Switch,
@@ -264,7 +265,13 @@ function handleSocialNotificationsChange(value: boolean) {
       <View style={styles.header}>
         <View style={styles.left}>
           <View style={styles.logo} />
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.brandRow}>
+            <Image
+              source={require('../assets/outgrow-logo.png')}
+              style={styles.logo}
+            />
+            <Text style={styles.title}>{title}</Text>
+          </View>
         </View>
 
         {shouldShowMenu && (
@@ -295,7 +302,10 @@ function handleSocialNotificationsChange(value: boolean) {
           <View style={styles.drawer}>
             <View>
               <View style={styles.drawerHeader}>
-                <View style={styles.drawerLogo} />
+                <Image
+                  source={require('../assets/outgrow-logo.png')}
+                  style={styles.drawerLogo}
+                />
 
                 <View>
                   <Text style={styles.drawerTitle}>OutGrow</Text>
@@ -540,10 +550,12 @@ function PasswordInput({
 
 const styles = StyleSheet.create({
   header: {
-    marginBottom: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  paddingHorizontal: 12,
+  paddingTop: 6,
+  paddingBottom: 6,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
   },
   left: {
     flexDirection: 'row',
@@ -551,14 +563,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logo: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#ECEEFF',
-    marginRight: 12,
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
     color: '#17172F',
   },
@@ -607,14 +617,12 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   drawerLogo: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: '#ECEEFF',
-    marginRight: 12,
+    width: 80,
+    height: 80,
+   resizeMode: 'contain',
   },
   drawerTitle: {
-    fontSize: 22,
+    fontSize: 30,
     fontWeight: '900',
     color: '#17172F',
   },
@@ -625,7 +633,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   drawerSection: {
-    marginBottom: 24,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 12,
@@ -638,7 +646,7 @@ const styles = StyleSheet.create({
   menuItem: {
     minHeight: 48,
     borderRadius: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 6,
     marginBottom: 7,
     backgroundColor: '#F6F7FB',
     flexDirection: 'row',
@@ -771,4 +779,12 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
+  brandRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 3,
+  flex: 1,
+  justifyContent: 'flex-start',
+  marginLeft: -80,
+},
 });
