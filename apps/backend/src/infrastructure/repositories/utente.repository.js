@@ -182,57 +182,65 @@ export class UtenteRepository {
    * @param {number} limit 
    * @param {number} offset 
    */
+  /**
+   * Recupera i post (sfide completate) di un utente specifico per la timeline del profilo,
+   * arricchiti con i contatori di interazione e lo stato del "Mi piace".
+   */
   async findPostsByUtenteId(utenteId, utenteLoggatoId, limit = 10, offset = 0) {
-const query = `
-  SELECT 
-    sc.id, 
-    s.titolo AS "titoloSfida", 
-    sc.descrizione, 
-    sc.luogo, 
-    sc.difficolta_attesa AS "difficoltaAttesa",
-    sc.difficolta_percepita AS "difficoltaPercepita",
-    sc.pubblicazione,
-    u.username AS "autoreUsername",
-    u.foto AS "autoreFoto",
-    COUNT(DISTINCT lsc.utente) AS "totaleLike",
-    COUNT(DISTINCT c.id) AS "totaleCommenti",
-    EXISTS (
-      SELECT 1
-      FROM like_sfida_completata lsc_me
-      WHERE lsc_me.sfida_completata = sc.id
-        AND lsc_me.utente = $2
-  ) AS "messoDaMe",
-    COALESCE(
-      json_agg(
-        json_build_object(
-          'id', m.id,
-          'tipo', m.tipo,
-          'url', m.url
-        )
-      ) FILTER (WHERE m.id IS NOT NULL),
-      '[]'
-    ) AS media
-  FROM sfida_completata sc
-  JOIN sfida s ON sc.sfida = s.id
-  JOIN utente u ON sc.utente = u.id
-  LEFT JOIN like_sfida_completata lsc ON lsc.sfida_completata = sc.id
-  LEFT JOIN commento c ON c.sfida_completata = sc.id
-  LEFT JOIN media m ON m.sfida_completata = sc.id
-  WHERE sc.utente = $1
-  GROUP BY sc.id, s.titolo, u.username, u.foto
-  ORDER BY sc.pubblicazione DESC
-  LIMIT $2 OFFSET $3;
-`;
+    const query = `
+      SELECT 
+        sc.id, 
+        s.titolo AS "titoloSfida", 
+        sc.descrizione, 
+        sc.luogo, 
+        sc.difficolta_attesa AS "difficoltaAttesa",
+        sc.difficolta_percepita AS "difficoltaPercepita",
+        sc.pubblicazione,
+        u.username AS "autoreUsername",
+        u.foto AS "autoreFoto",
+        COUNT(DISTINCT lsc.utente) AS "totaleLike",
+        COUNT(DISTINCT c.id) AS "totaleCommenti",
+        EXISTS (
+          SELECT 1
+          FROM like_sfida_completata lsc_me
+          WHERE lsc_me.sfida_completata = sc.id
+            AND lsc_me.utente = $2
+        ) AS "messoDaMe",
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', m.id,
+                'tipo', m.tipo,
+                'url', m.url
+              )
+            )
+            FROM media m
+            WHERE m.sfida_completata = sc.id
+          ),
+          '[]'
+        ) AS media
+      FROM sfida_completata sc
+      JOIN sfida s ON sc.sfida = s.id
+      JOIN utente u ON sc.utente = u.id
+      LEFT JOIN like_sfida_completata lsc ON lsc.sfida_completata = sc.id
+      LEFT JOIN commento c ON c.sfida_completata = sc.id
+      WHERE sc.utente = $1
+      GROUP BY sc.id, s.titolo, u.username, u.foto
+      ORDER BY sc.pubblicazione DESC
+      LIMIT $3 OFFSET $4;
+    `;
 
-  try {
-    const result = await pool.query(query, [utenteId, limit, offset]);
-    return result.rows;
-  } catch (error) {
-    throw new Error(
-      `Errore nel recupero dei post dell'utente: ${error.message}`
-    );
+    try {
+      // Passiamo tutti e 4 i parametri nell'ordine corretto mappato sui segnaposto ($1, $2, $3, $4)
+      const result = await pool.query(query, [utenteId, utenteLoggatoId, limit, offset]);
+      return result.rows;
+    } catch (error) {
+      throw new Error(
+        `Errore nel recupero dei post dell'utente: ${error.message}`
+      );
+    }
   }
-}
 
   /**
    * Aggiorna la foto profilo e/o la copertina di un utente.

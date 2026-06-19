@@ -23,7 +23,7 @@ import {
 
 const DIFFICULTIES = [
   { label: 'Bassa', value: 'facile' },
-  { label: 'Media', value: 'media' },
+  { label: 'Media', value: 'medio' },
   { label: 'Alta', value: 'difficile' },
 ];
 

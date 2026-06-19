@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -14,7 +15,15 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import Card from '../../../components/Card';
 import Header from '../../../components/Header';
 import Screen from '../../../components/Screen';
-import { FeedPost, getGlobalFeedApi, togglePostLikeApi } from '../../../lib/feed';
+import { 
+  FeedPost, 
+  CommentoPost, 
+  RispostaCommento,
+  getGlobalFeedApi, 
+  togglePostLikeApi, 
+  addCommentToPostApi,
+  addReplyToCommentApi 
+} from '../../../lib/feed';
 
 function getMediaUrl(mediaPath?: string | null) {
   if (!mediaPath) return null;
@@ -60,36 +69,14 @@ export default function Feed() {
     }
   }, []);
 
-  useEffect(() => {
-    loadFeed();
-  }, [loadFeed]);
-
-  async function handleToggleLike(postId: number) {
-  const previousPosts = posts;
-
-  setPosts((currentPosts) =>
-    currentPosts.map((post) => {
-      if (post.id !== postId) {
-        return post;
-      }
-
-      const alreadyLiked = post.interazioni.messoDaMe;
-
-      return {
-        ...post,
-        interazioni: {
-          ...post.interazioni,
-          messoDaMe: !alreadyLiked,
-          totaleLike: alreadyLiked
-            ? Math.max(0, post.interazioni.totaleLike - 1)
-            : post.interazioni.totaleLike + 1,
-        },
-      };
-    })
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [loadFeed])
   );
 
-  try {
-    const result = await togglePostLikeApi(postId);
+  async function handleToggleLike(postId: number) {
+    const previousPosts = posts;
 
     setPosts((currentPosts) =>
       currentPosts.map((post) => {
@@ -97,26 +84,135 @@ export default function Feed() {
           return post;
         }
 
+        const alreadyLiked = post.interazioni.messoDaMe;
+
         return {
           ...post,
           interazioni: {
             ...post.interazioni,
-            messoDaMe: result.liked,
+            messoDaMe: !alreadyLiked,
+            totaleLike: alreadyLiked
+              ? Math.max(0, post.interazioni.totaleLike - 1)
+              : post.interazioni.totaleLike + 1,
           },
         };
       })
     );
-  } catch (error) {
-    setPosts(previousPosts);
 
-    Alert.alert(
-      'Errore',
-      error instanceof Error
-        ? error.message
-        : 'Impossibile aggiornare il like.'
-    );
+    try {
+      const result = await togglePostLikeApi(postId);
+
+      setPosts((currentPosts) =>
+        currentPosts.map((post) => {
+          if (post.id !== postId) {
+            return post;
+          }
+
+          return {
+            ...post,
+            interazioni: {
+              ...post.interazioni,
+              messoDaMe: result.liked,
+            },
+          };
+        })
+      );
+    } catch (error) {
+      setPosts(previousPosts);
+
+      Alert.alert(
+        'Errore',
+        error instanceof Error
+          ? error.message
+          : 'Impossibile aggiornare il like.'
+      );
+    }
   }
-}
+
+  async function handleAddComment(postId: number, text: string, commentoPadreId?: number) {
+    try {
+      if (commentoPadreId) {
+        // Se c'è un commentoPadreId, salviamo una risposta di secondo livello
+        const replyData = await addReplyToCommentApi(commentoPadreId, text);
+
+        setPosts((currentPosts) =>
+          currentPosts.map((post) => {
+            if (post.id !== postId) return post;
+
+            return {
+              ...post,
+              interazioni: {
+                ...post.interazioni,
+                totaleCommenti: post.interazioni.totaleCommenti + 1,
+              },
+              commenti: (post.commenti || []).map((commento) => {
+                if (commento.id !== commentoPadreId) return commento;
+
+                const nuovaRisposta: RispostaCommento = {
+                  id: replyData.id,
+                  testo: replyData.testo,
+                  commentoPadreId: commentoPadreId,
+                  autore: {
+                    id: replyData.utenteId,
+                    username: 'Tu',
+                    foto: null
+                  },
+                  totaleLike: 0,
+                  messoDaMe: false
+                };
+
+                return {
+                  ...commento,
+                  totaleRisposte: commento.totaleRisposte + 1,
+                  risposte: [...(commento.risposte || []), nuovaRisposta]
+                };
+              })
+            };
+          })
+        );
+      } else {
+        // Altrimenti è un normale commento principale legato al Post
+        const commentData = await addCommentToPostApi(postId, text);
+
+        setPosts((currentPosts) =>
+          currentPosts.map((post) => {
+            if (post.id !== postId) return post;
+
+            const nuovoCommento: CommentoPost = {
+              id: commentData.id,
+              testo: commentData.testo,
+              autore: {
+                id: commentData.utenteId,
+                username: 'Tu', 
+                foto: null
+              },
+              totaleLike: 0,
+              messoDaMe: false,
+              totaleRisposte: 0,
+              risposte: []
+            };
+
+            return {
+              ...post,
+              interazioni: {
+                ...post.interazioni,
+                totaleCommenti: post.interazioni.totaleCommenti + 1,
+              },
+              commenti: [nuovoCommento, ...(post.commenti || [])]
+            };
+          })
+        );
+      }
+    } catch (commentError) {
+      Alert.alert(
+        'Errore',
+        commentError instanceof Error
+          ? commentError.message
+          : 'Impossibile inviare il commento.'
+      );
+      throw commentError; 
+    }
+  }
 
   return (
     <Screen>
@@ -164,12 +260,13 @@ export default function Feed() {
 
       {!loading && !error
         ? posts.map((post) => (
-    <PostCard
-      key={post.id}
-      post={post}
-      onToggleLike={handleToggleLike}
-    />
-  ))
+            <PostCard
+              key={post.id}
+              post={post}
+              onToggleLike={handleToggleLike}
+              onAddComment={handleAddComment}
+            />
+          ))
         : null}
     </Screen>
   );
@@ -178,6 +275,7 @@ export default function Feed() {
 type PostCardProps = {
   post: FeedPost;
   onToggleLike: (postId: number) => void;
+  onAddComment: (postId: number, text: string, commentoPadreId?: number) => Promise<void>;
 };
 
 type SelectedMedia = {
@@ -185,132 +283,304 @@ type SelectedMedia = {
   tipo: 'Immagine' | 'Video';
 };
 
-function PostCard({ post, onToggleLike }: PostCardProps) {
+function PostCard({ post, onToggleLike, onAddComment }: PostCardProps) {
   const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  // 1. Nuovo stato per gestire la visibilità dei commenti di questo specifico post
+  const [showComments, setShowComments] = useState(false); 
+  const [commentText, setCommentText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Traccia se stiamo rispondendo a un commento specifico
+  const [replyTo, setReplyTo] = useState<{ id: number; username: string } | null>(null);
+
   const authorAvatarUrl = getMediaUrl(post.autore.foto);
+
+  async function handleSendComment() {
+    if (!commentText.trim()) return;
+
+    try {
+      setSubmitting(true);
+      // Passiamo il replyTo.id se attivo, configurando automaticamente il commento padre
+      await onAddComment(post.id, commentText.trim(), replyTo?.id);
+      setCommentText('');
+      setReplyTo(null);
+      setShowCommentInput(false); 
+      // Manteniamo i commenti visibili dopo l'invio così l'utente vede il suo nuovo commento
+      setShowComments(true); 
+    } catch (e) {
+      // Gestito dal componente padre
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <Card>
-              <View style={styles.authorRow}>
-          <View style={styles.authorAvatar}>
-            {authorAvatarUrl ? (
-              <Image
-                source={{ uri: authorAvatarUrl }}
-                style={styles.authorAvatarImage}
-              />
-            ) : (
-              <Text style={styles.authorAvatarText}>
-                {post.autore.username?.[0]?.toUpperCase() ?? 'U'}
-              </Text>
-            )}
-          </View>
-
-          <Text style={styles.username}>@{post.autore.username}</Text>
-        </View>
-     <Text style={styles.postTitle}>{post.titoloSfida}</Text>
-
-{post.descrizione ? (
-  <Text style={styles.description}>{post.descrizione}</Text>
-) : null}
-
-{post.luogo ? (
-  <Text style={styles.location}>📍 {post.luogo}</Text>
-) : null}
-
-{post.media.length > 0 ? (
-  <View style={styles.mediaGrid}>
-    {post.media.map((mediaItem) => {
-      const mediaUrl = getMediaUrl(mediaItem.url);
-
-      if (!mediaUrl) return null;
-
-      if (mediaItem.tipo === 'Immagine') {
-        return (
-          <Pressable
-            key={mediaItem.id}
-            style={styles.mediaGridItem}
-            onPress={() =>
-              setSelectedMedia({
-                url: mediaUrl,
-                tipo: 'Immagine',
-              })
-            }
-          >
+      <View style={styles.authorRow}>
+        <View style={styles.authorAvatar}>
+          {authorAvatarUrl ? (
             <Image
-              source={{ uri: mediaUrl }}
-              style={styles.mediaGridImage}
-              resizeMode="cover"
+              source={{ uri: authorAvatarUrl }}
+              style={styles.authorAvatarImage}
             />
-          </Pressable>
-        );
-      }
+          ) : (
+            <Text style={styles.authorAvatarText}>
+              {post.autore.username?.[0]?.toUpperCase() ?? 'U'}
+            </Text>
+          )}
+        </View>
 
-      return (
-        <Pressable
-          key={mediaItem.id}
-          style={styles.mediaGridItem}
-          onPress={() =>
-            setSelectedMedia({
-              url: mediaUrl,
-              tipo: 'Video',
-            })
-          }
-        >
-          <VideoThumbnail uri={mediaUrl} />
-        </Pressable>
-      );
-    })}
-  </View>
-) : null}
+        <Text style={styles.username}>@{post.autore.username}</Text>
+      </View>
+      
+      <Text style={styles.postTitle}>{post.titoloSfida}</Text>
+
+      {post.descrizione ? (
+        <Text style={styles.description}>{post.descrizione}</Text>
+      ) : null}
+
+      {post.luogo ? (
+        <Text style={styles.location}>📍 {post.luogo}</Text>
+      ) : null}
+
+      {post.media.length > 0 ? (
+        <View style={styles.mediaGrid}>
+          {post.media.map((mediaItem) => {
+            const mediaUrl = getMediaUrl(mediaItem.url);
+
+            if (!mediaUrl) return null;
+
+            if (mediaItem.tipo === 'Immagine') {
+              return (
+                <Pressable
+                  key={mediaItem.id}
+                  style={styles.mediaGridItem}
+                  onPress={() =>
+                    setSelectedMedia({
+                      url: mediaUrl,
+                      tipo: 'Immagine',
+                    })
+                  }
+                >
+                  <Image
+                    source={{ uri: mediaUrl }}
+                    style={styles.mediaGridImage}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              );
+            }
+
+            return (
+              <Pressable
+                key={mediaItem.id}
+                style={styles.mediaGridItem}
+                onPress={() =>
+                  setSelectedMedia({
+                    url: mediaUrl,
+                    tipo: 'Video',
+                  })
+                }
+              >
+                <VideoThumbnail uri={mediaUrl} />
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
 
       {post.difficoltaAttesa || post.difficoltaPercepita ? (
-  <View style={styles.difficultyRow}>
-    {post.difficoltaAttesa ? (
-      <Text style={styles.difficulty}>
-        Aspettata: {formatDifficulty(post.difficoltaAttesa)}
-      </Text>
-    ) : null}
+        <View style={styles.difficultyRow}>
+          {post.difficoltaAttesa ? (
+            <Text style={styles.difficulty}>
+              Aspettata: {formatDifficulty(post.difficoltaAttesa)}
+            </Text>
+          ) : null}
 
-    {post.difficoltaPercepita ? (
-      <Text style={styles.difficulty}>
-        Percepita: {formatDifficulty(post.difficoltaPercepita)}
-      </Text>
-    ) : null}
-  </View>
-) : null}
+          {post.difficoltaPercepita ? (
+            <Text style={styles.difficulty}>
+              Percepita: {formatDifficulty(post.difficoltaPercepita)}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <Pressable
-  style={({ pressed }) => [
-    styles.likeButton,
-    pressed && styles.pressed,
-  ]}
-  onPress={() => onToggleLike(post.id)}
->
-  <Text
-    style={[
-      styles.likeIcon,
-      post.interazioni.messoDaMe && styles.likeIconActive,
-    ]}
-  >
-    {post.interazioni.messoDaMe ? '♥' : '♡'}
-  </Text>
+          style={({ pressed }) => [
+            styles.likeButton,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => onToggleLike(post.id)}
+        >
+          <Text
+            style={[
+              styles.likeIcon,
+              post.interazioni.messoDaMe && styles.likeIconActive,
+            ]}
+          >
+            {post.interazioni.messoDaMe ? '♥' : '♡'}
+          </Text>
 
-  <Text
-    style={[
-      styles.action,
-      post.interazioni.messoDaMe && styles.actionActive,
-    ]}
-  >
-    {post.interazioni.totaleLike}
-  </Text>
-</Pressable>
-        <Text style={styles.action}>
-          Commenta · {post.interazioni.totaleCommenti}
-        </Text>
-        <Text style={styles.action}>Segnala</Text>
+          <Text
+            style={[
+              styles.action,
+              post.interazioni.messoDaMe && styles.actionActive,
+            ]}
+          >
+            {post.interazioni.totaleLike}
+          </Text>
+        </Pressable>
+
+        {/* 2. Modificato il comportamento al click: inverte sia l'input che la lista commenti */}
+        <Pressable 
+          style={({ pressed }) => pressed && styles.pressed}
+          onPress={() => {
+            setReplyTo(null);
+            const targetsState = !showCommentInput;
+            setShowCommentInput(targetsState);
+            setShowComments(targetsState);
+          }}
+        >
+          <Text style={styles.action}>
+            Commenta · {post.interazioni.totaleCommenti}
+          </Text>
+        </Pressable>
+        
+        <Text style={[styles.action, { opacity: 0 }]}>Segnala</Text>
       </View>
+      
+      {/* INPUT PER NUOVO COMMENTO PRINCIPALE */}
+      {showCommentInput && !replyTo && (
+        <View style={styles.commentInputWrapper}>
+          <View style={styles.commentInputContainer}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Scrivi un commento..."
+              placeholderTextColor="#7A7F9A"
+              value={commentText}
+              onChangeText={setCommentText}
+              editable={!submitting}
+              multiline
+            />
+            <Pressable
+              style={[
+                styles.sendCommentButton,
+                (!commentText.trim() || submitting) && styles.disabledButton
+              ]}
+              disabled={!commentText.trim() || submitting}
+              onPress={handleSendComment}
+            >
+              <Text style={styles.sendCommentText}>
+                {submitting ? '...' : 'Invia'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
+      {/* 3. Albero dei Commenti condizionato dallo stato showComments */}
+      {showComments && post.commenti && post.commenti.length > 0 && (
+        <View style={styles.commentsSection}>
+          {post.commenti.map((commento) => (
+            <View key={commento.id} style={styles.commentContainer}>
+              {/* Commento Principale */}
+              <View style={styles.commentHeader}>
+                <View style={styles.commentAuthorAvatar}>
+                  {commento.autore.foto ? (
+                    <Image
+                      source={{ uri: getMediaUrl(commento.autore.foto) ?? undefined }}
+                      style={styles.commentAvatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.commentAvatarText}>
+                      {commento.autore.username?.[0]?.toUpperCase() ?? 'U'}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.commentContentContainer}>
+                  <Text style={styles.commentUsername}>@{commento.autore.username}</Text>
+                  <Text style={styles.commentText}>{commento.testo}</Text>
+                  
+                  <Pressable 
+                    style={({ pressed }) => [styles.replyActionButton, pressed && styles.pressed]}
+                    onPress={() => {
+                      setReplyTo({ id: commento.id, username: commento.autore.username });
+                      setShowCommentInput(true);
+                    }}
+                  >
+                    <Text style={styles.replyActionText}>Rispondi</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* INPUT PER RISPOSTA DI SECONDO LIVELLO */}
+              {showCommentInput && replyTo?.id === commento.id && (
+                <View style={[styles.commentInputWrapper, { paddingLeft: 34, borderTopWidth: 0, paddingTop: 8 }]}>
+                  <View style={styles.replyToHeader}>
+                    <Text style={styles.replyToText}>Stai rispondendo a @{replyTo.username}</Text>
+                    <Pressable onPress={() => { setReplyTo(null); setShowCommentInput(false); }}>
+                      <Text style={styles.cancelReplyText}>Annulla</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.commentInputContainer}>
+                    <TextInput
+                      style={styles.commentInput}
+                      placeholder="Scrivi una risposta..."
+                      placeholderTextColor="#7A7F9A"
+                      value={commentText}
+                      onChangeText={setCommentText}
+                      editable={!submitting}
+                      multiline
+                    />
+                    <Pressable
+                      style={[
+                        styles.sendCommentButton,
+                        (!commentText.trim() || submitting) && styles.disabledButton
+                      ]}
+                      disabled={!commentText.trim() || submitting}
+                      onPress={handleSendComment}
+                    >
+                      <Text style={styles.sendCommentText}>
+                        {submitting ? '...' : 'Invia'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
+              {/* Risposte di Secondo Livello (Annidate) */}
+              {commento.risposte && commento.risposte.length > 0 && (
+                <View style={styles.repliesContainer}>
+                  {commento.risposte.map((risposta) => (
+                    <View key={risposta.id} style={styles.replyItem}>
+                      <View style={styles.commentAuthorAvatar}>
+                        {risposta.autore.foto ? (
+                          <Image
+                            source={{ uri: getMediaUrl(risposta.autore.foto) ?? undefined }}
+                            style={styles.commentAvatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.commentAvatarText}>
+                            {risposta.autore.username?.[0]?.toUpperCase() ?? 'U'}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.commentContentContainer}>
+                        <Text style={styles.commentUsername}>@{risposta.autore.username}</Text>
+                        <Text style={styles.commentText}>{risposta.testo}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Modal Media */}
       <Modal
         visible={!!selectedMedia}
         transparent
@@ -432,11 +702,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   videoOverlay: {
-  ...StyleSheet.absoluteFillObject,
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: 'rgba(0, 0, 0, 0.18)',
-},
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+  },
   username: {
     color: '#5B5FEF',
     fontWeight: '800',
@@ -448,94 +718,91 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   mediaGrid: {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginBottom: 12,
-},
-videoTile: {
-  width: '100%',
-  height: '100%',
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#ECEEFF',
-  overflow: 'hidden',
-},
-videoThumbnail: {
-  ...StyleSheet.absoluteFillObject,
-},
-videoIcon: {
-  color: '#5B5FEF',
-  fontSize: 30,
-  fontWeight: '900',
-  marginBottom: 6,
-},
-modalCloseButton: {
-  position: 'absolute',
-  top: 52,
-  right: 24,
-  zIndex: 2,
-  width: 42,
-  height: 42,
-  borderRadius: 21,
-  backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-modalCloseText: {
-  color: '#FFFFFF',
-  fontSize: 32,
-  lineHeight: 36,
-  fontWeight: '700',
-},
-videoModal: {
-  width: '100%',
-  height: '70%',
-},
-mediaGridItem: {
-  width: '48%',
-  height: 140,
-  borderRadius: 18,
-  backgroundColor: '#F0F1F7',
-  overflow: 'hidden',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-mediaGridImage: {
-  width: '100%',
-  height: '100%',
-},
-imageModalBackdrop: {
-  flex: 1,
-  backgroundColor: 'rgba(0, 0, 0, 0.9)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 20,
-},
-imageModal: {
-  width: '100%',
-  height: '80%',
-},
-likeButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 4,
-},
-
-likeIcon: {
-  color: '#5B5FEF',
-  fontSize: 20,
-  fontWeight: '900',
-  marginTop: -1,
-},
-
-likeIconActive: {
-  color: '#5B5FEF',
-},
-
-actionActive: {
-  color: '#5B5FEF',
-},
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  videoTile: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ECEEFF',
+    overflow: 'hidden',
+  },
+  videoThumbnail: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  videoIcon: {
+    color: '#5B5FEF',
+    fontSize: 30,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 52,
+    right: 24,
+    zIndex: 2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: '700',
+  },
+  videoModal: {
+    width: '100%',
+    height: '70%',
+  },
+  mediaGridItem: {
+    width: '48%',
+    height: 140,
+    borderRadius: 18,
+    backgroundColor: '#F0F1F7',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaGridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  imageModal: {
+    width: '100%',
+    height: '80%',
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  likeIcon: {
+    color: '#5B5FEF',
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: -1,
+  },
+  likeIconActive: {
+    color: '#5B5FEF',
+  },
+  actionActive: {
+    color: '#5B5FEF',
+  },
   mediaBox: {
     height: 150,
     backgroundColor: '#F0F1F7',
@@ -577,6 +844,7 @@ actionActive: {
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#EEF0F6',
     paddingTop: 12,
@@ -589,30 +857,152 @@ actionActive: {
     opacity: 0.75,
   },
   authorRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 8,
-},
-
-authorAvatar: {
-  width: 30,
-  height: 30,
-  borderRadius: 15,
-  backgroundColor: '#ECEEFF',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginRight: 8,
-  overflow: 'hidden',
-},
-
-authorAvatarImage: {
-  width: '100%',
-  height: '100%',
-},
-
-authorAvatarText: {
-  color: '#5B5FEF',
-  fontSize: 13,
-  fontWeight: '900',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  authorAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ECEEFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    overflow: 'hidden',
+  },
+  authorAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  authorAvatarText: {
+    color: '#5B5FEF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  commentInputWrapper: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF0F6',
+    paddingTop: 12,
+  },
+  replyToHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  replyToText: {
+    fontSize: 13,
+    color: '#5B5FEF',
+    fontWeight: '700',
+  },
+  cancelReplyText: {
+    fontSize: 13,
+    color: '#D64545',
+    fontWeight: '800',
+  },
+  commentInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: '#F6F7FB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#33364D',
+    fontSize: 14,
+    maxHeight: 80,
+  },
+  sendCommentButton: {
+    backgroundColor: '#5B5FEF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#ECEEFF',
+    opacity: 0.6,
+  },
+  sendCommentText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  /* Nuovi stili per la sezione albero dei commenti */
+  commentsSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF0F6',
+    paddingTop: 12,
+  },
+  commentContainer: {
+    marginBottom: 12,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  commentAuthorAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#ECEEFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  commentAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  commentAvatarText: {
+    color: '#5B5FEF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  commentContentContainer: {
+    flex: 1,
+    backgroundColor: '#F6F7FB',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  commentUsername: {
+    color: '#5B5FEF',
+    fontWeight: '800',
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  commentText: {
+    color: '#33364D',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  replyActionButton: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  replyActionText: {
+    color: '#7A7F9A',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  repliesContainer: {
+    paddingLeft: 34,
+    marginTop: 8,
+    gap: 8,
+  },
+  replyItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
 });

@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -21,7 +22,8 @@ import {
   MyProfile,
   updateProfileMediaApi,
 } from '../../../lib/auth';
-import { togglePostLikeApi } from '../../../lib/feed';
+import { togglePostLikeApi, addCommentToPostApi } from '../../../lib/feed';
+import { CommentSchema } from '../../../../../packages/shared/src/schemas';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -97,6 +99,7 @@ export default function Profile() {
   const [selectedProfileImage, setSelectedProfileImage] = useState<string | null>(
     null
   );
+  const [showAllBadges, setShowAllBadges] = useState(false);
 
   async function loadProfile() {
     try {
@@ -121,18 +124,20 @@ export default function Profile() {
     }
   }
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [])
+  );
 
   const coverUrl = getMediaUrl(profile?.copertina ?? profile?.coverPictureUrl);
   const avatarUrl = getMediaUrl(profile?.foto ?? profile?.profilePictureUrl);
   const badges = profile
-  ? (((profile as any).badges ??
-    (profile as any).badge ??
-    (profile as any).badgeOttenuti ??
-    (profile as any).badgesOttenuti ??
-    []) as any[])
+    ? (((profile as any).badges ??
+      (profile as any).badge ??
+      (profile as any).badgeOttenuti ??
+      (profile as any).badgesOttenuti ??
+      []) as any[])
     : [];
 
   function getUploadFileName(uri: string) {
@@ -439,6 +444,7 @@ export default function Profile() {
           </Modal>
 
           <Pressable
+            disabled={true}
             style={({ pressed }) => [
               styles.progressButton,
               pressed && styles.pressed,
@@ -460,29 +466,33 @@ export default function Profile() {
               </Text>
             </View>
 
-            <Text style={styles.progressArrow}>›</Text>
+            {/*<Text style={styles.progressArrow}>›</Text>*/}
           </Pressable>
 
           <Card>
             <View style={styles.badgeSectionHeader}>
               <Text style={styles.badgeSectionTitle}>Badge ottenuti</Text>
 
-              <Pressable
-                hitSlop={10}
-                onPress={() =>
-                  Alert.alert(
-                    'Badge ottenuti',
-                    'Qui mostreremo tutti i badge ottenuti.'
-                  )
-                }
-              >
-                <Text style={styles.linkSmall}>Vedi tutti</Text>
-              </Pressable>
+              {/* Mostra il tasto solo se ci sono effettivamente più di 4 badge */}
+              {badges.length > 4 && (
+                <Pressable
+                  hitSlop={10}
+                  onPress={() => setShowAllBadges(!showAllBadges)} // Inverte lo stato
+                >
+                  <Text style={styles.linkSmall}>
+                    {showAllBadges ? 'Mostra meno' : 'Vedi tutti'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
 
             {badges.length > 0 ? (
-              <View style={styles.badgeRow}>
-                {badges.slice(0, 4).map((badgeData) => (
+              <View style={[
+                styles.badgeRow, 
+                showAllBadges && { flexWrap: 'wrap' } // Permette ai badge di andare a capo quando espanso
+              ]}>
+                {/* Se showAllBadges è true mostra tutto, altrimenti taglia a 4 */}
+                {(showAllBadges ? badges : badges.slice(0, 4)).map((badgeData) => (
                   <Badge
                     key={String(badgeData.id)}
                     icon={
@@ -560,7 +570,7 @@ export default function Profile() {
             <Card>
               <Text style={styles.emptyText}>
                 Non hai ancora pubblicato post. Completa la sfida settimanale
-                per condividere la tua esperienza.
+                per condividere la tua experience.
               </Text>
             </Card>
           )}
@@ -622,10 +632,17 @@ function PostPreview({
   const [likeCount, setLikeCount] = useState(totalLikes);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
 
+  // Stati locali per la gestione dei commenti
+  const [commentCount, setCommentCount] = useState(totalComments);
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
   useEffect(() => {
     setIsLiked(likedByMe);
     setLikeCount(totalLikes);
-  }, [likedByMe, totalLikes]);
+    setCommentCount(totalComments);
+  }, [likedByMe, totalLikes, totalComments]);
 
   async function handleToggleLike() {
     if (isLikeLoading) {
@@ -649,6 +666,31 @@ function PostPreview({
       setLikeCount(previousCount);
     } finally {
       setIsLikeLoading(false);
+    }
+  }
+
+  async function handleSendComment() {
+    const cleanText = commentText.trim();
+
+    // Validazione locale con lo schema Zod condiviso
+    const validation = CommentSchema.safeParse({ text: cleanText });
+    if (!validation.success) {
+      Alert.alert('Attenzione', validation.error.errors[0].message);
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    try {
+      await addCommentToPostApi(postId, cleanText);
+      
+      setCommentCount((prev) => prev + 1);
+      setCommentText('');
+      setShowCommentInput(false);
+      Alert.alert('Successo', 'Commento aggiunto correttamente!');
+    } catch (error) {
+      Alert.alert('Errore', 'Impossibile inviare il commento. Riprova più tardi.');
+    } finally {
+      setIsSubmittingComment(false);
     }
   }
 
@@ -739,9 +781,46 @@ function PostPreview({
           <Text style={styles.postAction}>{likeCount}</Text>
         </Pressable>
 
-        <Text style={styles.postAction}>Commenta · {totalComments}</Text>
-        <Text style={styles.postAction}>Segnala</Text>
+        <Pressable 
+          style={({ pressed }) => [pressed && styles.pressed]}
+          onPress={() => setShowCommentInput(!showCommentInput)}
+        >
+          <Text style={styles.postAction}>Commenta · {commentCount}</Text>
+        </Pressable>
+        
+        <Pressable style={({ pressed }) => [pressed && styles.pressed]}>
+          <Text style={[styles.postAction, { opacity: 0 }]}>Segnala</Text>
+        </Pressable>
       </View>
+
+      {/* Sezione condizionale per l'input del commento inline */}
+      {showCommentInput && (
+        <View style={styles.commentInputContainer}>
+          <TextInput
+            style={styles.commentTextInput}
+            placeholder="Scrivi un commento..."
+            placeholderTextColor="#A1A5B7"
+            value={commentText}
+            onChangeText={setCommentText}
+            editable={!isSubmittingComment}
+            multiline
+          />
+          <Pressable
+            onPress={handleSendComment}
+            disabled={isSubmittingComment || !commentText.trim()}
+            style={({ pressed }) => [
+              styles.sendCommentButton,
+              (pressed || isSubmittingComment || !commentText.trim()) && styles.sendCommentButtonDisabled
+            ]}
+          >
+            {isSubmittingComment ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.sendCommentText}>Invia</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
 
       <Modal
         visible={!!selectedMedia}
@@ -1210,6 +1289,40 @@ const styles = StyleSheet.create({
     color: '#5B5FEF',
     fontWeight: '800',
     fontSize: 14,
+  },
+  commentInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F6F7FB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  commentTextInput: {
+    flex: 1,
+    color: '#181C32',
+    fontSize: 14,
+    maxHeight: 80,
+    paddingVertical: 4,
+  },
+  sendCommentButton: {
+    backgroundColor: '#5B5FEF',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendCommentButtonDisabled: {
+    backgroundColor: '#A1A5B7',
+    opacity: 0.7,
+  },
+  sendCommentText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
   mediaModalBackdrop: {
     flex: 1,

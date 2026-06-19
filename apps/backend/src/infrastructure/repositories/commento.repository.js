@@ -60,7 +60,7 @@ export class CommentoRepository {
    * @param {number} utenteLoggatoId - ID di chi sta leggendo i commenti (per il "messoDaMe")
    */
   async findByPostId(postId, utenteLoggatoId) {
-    // Ordiniamo per ID crescente (cronologico): i commenti più vecchi in alto, i nuovi sotto
+    // Ordiniamo per ID decrescente (cronologico): i commenti più vecchi in basso, i nuovi sopra
     const query = `
       SELECT 
         c.id,
@@ -89,7 +89,7 @@ export class CommentoRepository {
       
       WHERE c.sfida_completata = $1 -- Solo commenti principali del post
       GROUP BY c.id, u.id
-      ORDER BY c.id ASC;
+      ORDER BY c.id DESC;
     `;
 
     try {
